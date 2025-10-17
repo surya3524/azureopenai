@@ -8,11 +8,13 @@ using OpenAI.Chat;
 using System.Text.Json;
 using static System.Environment;
 using System.Linq;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHealthChecks();
 
 // CORS for local testing and static UI
 builder.Services.AddCors(o =>
@@ -85,6 +87,7 @@ app.MapPost("/api/chat", async (ChatRequest req) =>
 
 // Health check
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
+app.MapHealthChecks("/health");
 
 app.Run();
 
