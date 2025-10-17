@@ -12,6 +12,11 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Ensure local dev config is loaded even if environment isn't set to Development
+builder.Configuration
+    .AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
@@ -40,61 +45,73 @@ app.UseStaticFiles();
 
 app.MapPost("/api/chat", async (ChatRequest req) =>
 {
-    string endpoint;
-        string key;
-        string deployment;
-        
-        // Prefer config file in Development; env vars otherwise
-        if (app.Environment.IsDevelopment())
-        {
-            var cfg = app.Configuration;
-            endpoint = cfg["AzureOpenAI:Endpoint"];
-            key = cfg["AzureOpenAI:ApiKey"];
-            deployment = req.deployment ?? cfg["AzureOpenAI:Deployment"] ?? "gpt-4.1";
-        }
-        else
-        {
-            endpoint = GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT");
-            key = GetEnvironmentVariable("AZURE_OPENAI_API_KEY");
-            deployment = req.deployment ?? GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT") ?? "gpt-4.1";
-        }
-        
-        if (string.IsNullOrWhiteSpace(endpoint) || string.IsNullOrWhiteSpace(key))
-        {
-            return Results.Problem("Missing Azure OpenAI configuration.", statusCode: 500);
-        }
-        
-        var credential = new AzureKeyCredential(key);
-        var azureClient = new AzureOpenAIClient(new Uri(endpoint), credential);
-        var chatClient = azureClient.GetChatClient(deployment);
-        
-        var messages = new List<ChatMessage>();
-        if (!string.IsNullOrWhiteSpace(req.system))
-        {
-            messages.Add(new SystemChatMessage(req.system!));
-        }
-        messages.Add(new UserChatMessage(req.prompt));
-        
-        // Allow overriding options from config in Development; env vars otherwise
-        float temperature = 0.7f;
-        int maxTokens = 800;
-        
-        if (app.Environment.IsDevelopment())
-        {
-            float.TryParse(app.Configuration["AzureOpenAI:Temperature"], out temperature);
-            int.TryParse(app.Configuration["AzureOpenAI:MaxOutputTokens"], out maxTokens);
-        }
-        else
-        {
-            if (float.TryParse(GetEnvironmentVariable("OPENAI_TEMPERATURE"), out var t))
-            {
-                temperature = t;
-            }
-            if (int.TryParse(GetEnvironmentVariable("MAX_OUTPUT_TOKENS"), out var mt))
-            {
-                maxTokens = mt;
-            }
-        }
+    // Resolve configuration: prefer non-empty env vars, then appsettings
+    var cfg = app.Configuration;
+    var envEndpoint = GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")?.Trim();
+    var envKey = GetEnvironmentVariable("AZURE_OPENAI_API_KEY")?.Trim();
+    var envDeployment = GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT")?.Trim();
+
+    string endpoint = !string.IsNullOrWhiteSpace(envEndpoint) ? envEndpoint : cfg["AzureOpenAI:Endpoint"];
+    string key = !string.IsNullOrWhiteSpace(envKey) ? envKey : cfg["AzureOpenAI:ApiKey"];
+    string deployment = !string.IsNullOrWhiteSpace(req.deployment)
+        ? req.deployment!
+        : (!string.IsNullOrWhiteSpace(envDeployment) ? envDeployment : (cfg["AzureOpenAI:Deployment"] ?? "gpt-4.1"));
+
+    var missing = new List<string>();
+    if (string.IsNullOrWhiteSpace(endpoint)) missing.Add("Endpoint");
+    if (string.IsNullOrWhiteSpace(key)) missing.Add("ApiKey");
+    if (missing.Count > 0)
+    {
+        return Results.Problem($"Missing Azure OpenAI configuration: {string.Join(", ", missing)}.", statusCode: 500);
+    }
+
+    // Normalize endpoint to base resource URL expected by AzureOpenAIClient
+    Uri endpointUri;
+    try
+    {
+        endpointUri = new Uri(endpoint);
+    }
+    catch
+    {
+        return Results.Problem("Invalid Azure OpenAI endpoint URL.", statusCode: 500);
+    }
+    var baseEndpoint = new Uri(endpointUri.GetLeftPart(UriPartial.Authority) + "/");
+
+    var credential = new AzureKeyCredential(key);
+    var azureClient = new AzureOpenAIClient(baseEndpoint, credential);
+    var chatClient = azureClient.GetChatClient(deployment);
+
+    var messages = new List<ChatMessage>();
+    if (!string.IsNullOrWhiteSpace(req.system))
+    {
+        messages.Add(new SystemChatMessage(req.system!));
+    }
+    messages.Add(new UserChatMessage(req.prompt));
+
+    // Prefer env var overrides, then config, otherwise sane defaults
+    float temperature = 0.7f;
+    int maxTokens = 800;
+
+    var envTemp = GetEnvironmentVariable("OPENAI_TEMPERATURE");
+    var envMax = GetEnvironmentVariable("MAX_OUTPUT_TOKENS");
+
+    if (!string.IsNullOrWhiteSpace(envTemp) && float.TryParse(envTemp, out var t))
+    {
+        temperature = t;
+    }
+    else if (float.TryParse(cfg["AzureOpenAI:Temperature"], out var tc))
+    {
+        temperature = tc;
+    }
+
+    if (!string.IsNullOrWhiteSpace(envMax) && int.TryParse(envMax, out var mt))
+    {
+        maxTokens = mt;
+    }
+    else if (int.TryParse(cfg["AzureOpenAI:MaxOutputTokens"], out var mc))
+    {
+        maxTokens = mc;
+    }
 
     var options = new ChatCompletionOptions
     {
@@ -109,9 +126,8 @@ app.MapPost("/api/chat", async (ChatRequest req) =>
     {
         ChatCompletion completion = await chatClient.CompleteChatAsync(messages, options);
 
-    // Extract assistant text for convenience from content parts
-    var parts = completion.Content; // IEnumerable<ChatMessageContentPart>
-    string text = string.Join("\n\n", parts.Select(p => p.Text).Where(t => !string.IsNullOrWhiteSpace(t)));
+        var parts = completion.Content; // IEnumerable<ChatMessageContentPart>
+        string text = string.Join("\n\n", parts.Select(p => p.Text).Where(t => !string.IsNullOrWhiteSpace(t)));
 
         return Results.Ok(new ChatResponse(text, completion!));
     }
