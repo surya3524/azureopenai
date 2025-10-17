@@ -30,7 +30,8 @@
         <input id="system" placeholder="System prompt (optional)" style="flex:1" />
         <input id="deployment" placeholder="Deployment (optional, default gpt-4.1)" style="width:300px" />
       </div>
-      <textarea id="prompt" placeholder="Ask something...&#10;Example: I got a unique constraint error. What should I do?" ></textarea>
+      <label for="prompt" style="display:block;margin-bottom:4px;">Try asking: <b>Who is Elon Musk?</b></label>
+      <textarea id="prompt" placeholder="Ask something...&#10;Example: I got a unique constraint error. What should I do?"></textarea>
       <div class="row" style="align-items:center; justify-content:space-between;">
         <div class="tip">Set env vars AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY on the server.</div>
         <div>

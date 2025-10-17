@@ -1,5 +1,6 @@
 using Azure;
 using Azure.AI.OpenAI;
+using Azure.Identity;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,7 @@ using System.Text.Json;
 using static System.Environment;
 using System.Linq;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,6 +33,7 @@ builder.Services.AddCors(o =>
 builder.Services.AddDirectoryBrowser();
 
 var app = builder.Build();
+var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("ApiLogger");
 
 app.UseCors();
 
@@ -50,26 +53,30 @@ app.MapPost("/api/chat", async (ChatRequest req) =>
     var envEndpoint = GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")?.Trim();
     var envKey = GetEnvironmentVariable("AZURE_OPENAI_API_KEY")?.Trim();
     var envDeployment = GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT")?.Trim();
+    var envUseEntraId = GetEnvironmentVariable("USE_ENTRA_ID")?.Trim();
 
-    // Prefer env vars, then config, then local debug fallback
+    // Prefer env vars, then config
     string endpoint = !string.IsNullOrWhiteSpace(envEndpoint)
         ? envEndpoint
-        : cfg["AzureOpenAI:Endpoint"] ?? "https://localhost:1234/openai";
-    string key = !string.IsNullOrWhiteSpace(envKey)
+        : cfg["AzureOpenAI:Endpoint"] ?? "https://rs-sm-az-openai.openai.azure.com/";
+    
+    string? key = !string.IsNullOrWhiteSpace(envKey)
         ? envKey
-        : cfg["AzureOpenAI:ApiKey"] ?? "local-debug-key";
+        : cfg["AzureOpenAI:ApiKey"];
+    
     string deployment = !string.IsNullOrWhiteSpace(req.deployment)
         ? req.deployment!
         : (!string.IsNullOrWhiteSpace(envDeployment)
             ? envDeployment
             : (cfg["AzureOpenAI:Deployment"] ?? "gpt-4.1"));
 
-    var missing = new List<string>();
-    if (string.IsNullOrWhiteSpace(endpoint)) missing.Add("Endpoint");
-    if (string.IsNullOrWhiteSpace(key)) missing.Add("ApiKey");
-    if (missing.Count > 0)
+    // Determine authentication mode: if USE_ENTRA_ID=true or no API key provided, use Entra ID
+    bool useEntraId = (!string.IsNullOrWhiteSpace(envUseEntraId) && envUseEntraId.Equals("true", StringComparison.OrdinalIgnoreCase))
+                      || string.IsNullOrWhiteSpace(key);
+
+    if (string.IsNullOrWhiteSpace(endpoint))
     {
-        return Results.Problem($"Missing Azure OpenAI configuration: {string.Join(", ", missing)}.", statusCode: 500);
+        return Results.Problem("Missing Azure OpenAI Endpoint configuration.", statusCode: 500);
     }
 
     // Normalize endpoint to base resource URL expected by AzureOpenAIClient
@@ -82,10 +89,24 @@ app.MapPost("/api/chat", async (ChatRequest req) =>
     {
         return Results.Problem("Invalid Azure OpenAI endpoint URL.", statusCode: 500);
     }
-    var baseEndpoint = new Uri(endpointUri.GetLeftPart(UriPartial.Authority) + "/");
 
-    var credential = new AzureKeyCredential(key);
-    var azureClient = new AzureOpenAIClient(baseEndpoint, credential);
+    AzureOpenAIClient azureClient;
+    
+    if (useEntraId)
+    {
+        // Use DefaultAzureCredential for Entra ID authentication (Managed Identity, Azure CLI, etc.)
+        logger.LogInformation("Using Entra ID (DefaultAzureCredential) for authentication");
+        var credential = new DefaultAzureCredential();
+        azureClient = new AzureOpenAIClient(endpointUri, credential);
+    }
+    else
+    {
+        // Use API Key authentication
+        logger.LogInformation("Using API Key for authentication");
+        var credential = new AzureKeyCredential(key!);
+        azureClient = new AzureOpenAIClient(endpointUri, credential);
+    }
+
     var chatClient = azureClient.GetChatClient(deployment);
 
     var messages = new List<ChatMessage>();
@@ -129,6 +150,13 @@ app.MapPost("/api/chat", async (ChatRequest req) =>
         PresencePenalty = 0f,
     };
 
+    logger.LogInformation("API Call: /api/chat");
+    logger.LogInformation("  Endpoint: {Endpoint}", endpointUri);
+    logger.LogInformation("  Authentication: {AuthType}", useEntraId ? "Entra ID" : "API Key");
+    logger.LogInformation("  Temperature: {Temperature}", temperature);
+    logger.LogInformation("  MaxTokens: {MaxTokens}", maxTokens);
+    logger.LogInformation("  Deployment: {Deployment}", deployment);
+
     try
     {
         ChatCompletion completion = await chatClient.CompleteChatAsync(messages, options);
@@ -140,6 +168,7 @@ app.MapPost("/api/chat", async (ChatRequest req) =>
     }
     catch (Exception ex)
     {
+        logger.LogError(ex, "Chat API error");
         return Results.Problem($"Chat error: {ex.Message}", statusCode: 500);
     }
 });
