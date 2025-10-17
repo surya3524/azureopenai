@@ -40,30 +40,66 @@ app.UseStaticFiles();
 
 app.MapPost("/api/chat", async (ChatRequest req) =>
 {
-    var endpoint = GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT");
-    var key = GetEnvironmentVariable("AZURE_OPENAI_API_KEY");
-    var deployment = req.deployment ?? GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT") ?? "gpt-4.1";
-
-    if (string.IsNullOrWhiteSpace(endpoint) || string.IsNullOrWhiteSpace(key))
-    {
-        return Results.Problem("Missing AZURE_OPENAI_ENDPOINT or AZURE_OPENAI_API_KEY env vars.", statusCode: 500);
-    }
-
-    var credential = new AzureKeyCredential(key);
-    var azureClient = new AzureOpenAIClient(new Uri(endpoint), credential);
-    var chatClient = azureClient.GetChatClient(deployment);
-
-    var messages = new List<ChatMessage>();
-    if (!string.IsNullOrWhiteSpace(req.system))
-    {
-        messages.Add(new SystemChatMessage(req.system!));
-    }
-    messages.Add(new UserChatMessage(req.prompt));
+    string endpoint;
+        string key;
+        string deployment;
+        
+        // Prefer config file in Development; env vars otherwise
+        if (app.Environment.IsDevelopment())
+        {
+            var cfg = app.Configuration;
+            endpoint = cfg["AzureOpenAI:Endpoint"];
+            key = cfg["AzureOpenAI:ApiKey"];
+            deployment = req.deployment ?? cfg["AzureOpenAI:Deployment"] ?? "gpt-4.1";
+        }
+        else
+        {
+            endpoint = GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT");
+            key = GetEnvironmentVariable("AZURE_OPENAI_API_KEY");
+            deployment = req.deployment ?? GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT") ?? "gpt-4.1";
+        }
+        
+        if (string.IsNullOrWhiteSpace(endpoint) || string.IsNullOrWhiteSpace(key))
+        {
+            return Results.Problem("Missing Azure OpenAI configuration.", statusCode: 500);
+        }
+        
+        var credential = new AzureKeyCredential(key);
+        var azureClient = new AzureOpenAIClient(new Uri(endpoint), credential);
+        var chatClient = azureClient.GetChatClient(deployment);
+        
+        var messages = new List<ChatMessage>();
+        if (!string.IsNullOrWhiteSpace(req.system))
+        {
+            messages.Add(new SystemChatMessage(req.system!));
+        }
+        messages.Add(new UserChatMessage(req.prompt));
+        
+        // Allow overriding options from config in Development; env vars otherwise
+        float temperature = 0.7f;
+        int maxTokens = 800;
+        
+        if (app.Environment.IsDevelopment())
+        {
+            float.TryParse(app.Configuration["AzureOpenAI:Temperature"], out temperature);
+            int.TryParse(app.Configuration["AzureOpenAI:MaxOutputTokens"], out maxTokens);
+        }
+        else
+        {
+            if (float.TryParse(GetEnvironmentVariable("OPENAI_TEMPERATURE"), out var t))
+            {
+                temperature = t;
+            }
+            if (int.TryParse(GetEnvironmentVariable("MAX_OUTPUT_TOKENS"), out var mt))
+            {
+                maxTokens = mt;
+            }
+        }
 
     var options = new ChatCompletionOptions
     {
-        Temperature = 0.7f,
-        MaxOutputTokenCount = 800,
+        Temperature = temperature,
+        MaxOutputTokenCount = maxTokens,
         TopP = 0.95f,
         FrequencyPenalty = 0f,
         PresencePenalty = 0f,
