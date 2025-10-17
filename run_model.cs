@@ -94,14 +94,12 @@ app.MapPost("/api/chat", async (ChatRequest req) =>
     
     if (useEntraId)
     {
-        // Use DefaultAzureCredential for Entra ID authentication (Managed Identity, Azure CLI, etc.)
         logger.LogInformation("Using Entra ID (DefaultAzureCredential) for authentication");
         var credential = new DefaultAzureCredential();
         azureClient = new AzureOpenAIClient(endpointUri, credential);
     }
     else
     {
-        // Use API Key authentication
         logger.LogInformation("Using API Key for authentication");
         var credential = new AzureKeyCredential(key!);
         azureClient = new AzureOpenAIClient(endpointUri, credential);

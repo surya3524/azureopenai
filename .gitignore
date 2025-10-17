@@ -87,3 +87,4 @@ Desktop.ini
 ## Node (just in case mixed project)
 node_modules/
 # End
+/Config_to_make_it_Work.txt
