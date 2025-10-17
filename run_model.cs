@@ -16,8 +16,8 @@ async Task RunAsync()
       return;
   }
 
-  var key = "7w39wbuKV2FS6O7C9tImlcj0sgRrlrJX4UsC4C4RMe3pELYpKMDAJQQJ99BJACYeBjFXJ3w3AAABACOGEwJe";
   
+  var key = "TODO"
   
 
     AzureKeyCredential credential = new AzureKeyCredential(key);
