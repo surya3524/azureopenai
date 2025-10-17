@@ -27,6 +27,7 @@ project.assets.json
 .tools/
 # Ignore local ASP.NET Core configuration and launch settings
 appsettings*.json
+appsettings.Development.json
 /Properties/launchSettings.json
 # ========== Java ========== #
 ## Compiled class files

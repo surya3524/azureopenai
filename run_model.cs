@@ -51,11 +51,18 @@ app.MapPost("/api/chat", async (ChatRequest req) =>
     var envKey = GetEnvironmentVariable("AZURE_OPENAI_API_KEY")?.Trim();
     var envDeployment = GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT")?.Trim();
 
-    string endpoint = !string.IsNullOrWhiteSpace(envEndpoint) ? envEndpoint : cfg["AzureOpenAI:Endpoint"];
-    string key = !string.IsNullOrWhiteSpace(envKey) ? envKey : cfg["AzureOpenAI:ApiKey"];
+    // Prefer env vars, then config, then local debug fallback
+    string endpoint = !string.IsNullOrWhiteSpace(envEndpoint)
+        ? envEndpoint
+        : cfg["AzureOpenAI:Endpoint"] ?? "https://localhost:1234/openai";
+    string key = !string.IsNullOrWhiteSpace(envKey)
+        ? envKey
+        : cfg["AzureOpenAI:ApiKey"] ?? "local-debug-key";
     string deployment = !string.IsNullOrWhiteSpace(req.deployment)
         ? req.deployment!
-        : (!string.IsNullOrWhiteSpace(envDeployment) ? envDeployment : (cfg["AzureOpenAI:Deployment"] ?? "gpt-4.1"));
+        : (!string.IsNullOrWhiteSpace(envDeployment)
+            ? envDeployment
+            : (cfg["AzureOpenAI:Deployment"] ?? "gpt-4.1"));
 
     var missing = new List<string>();
     if (string.IsNullOrWhiteSpace(endpoint)) missing.Add("Endpoint");
