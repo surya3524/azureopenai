@@ -1,86 +1,93 @@
-// Install the .NET library via NuGet: dotnet add package Azure.AI.OpenAI --prerelease
 using Azure;
 using Azure.AI.OpenAI;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using OpenAI.Chat;
-
-using static System.Environment;
 using System.Text.Json;
+using static System.Environment;
+using System.Linq;
 
-async Task RunAsync()
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+// CORS for local testing and static UI
+builder.Services.AddCors(o =>
 {
-  // Retrieve the OpenAI endpoint from environment variables
-  var endpoint = GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT") ?? "https://rs-sm-az-openai.openai.azure.com/";
-  if (string.IsNullOrEmpty(endpoint))
-  {
-      Console.WriteLine("Please set the AZURE_OPENAI_ENDPOINT environment variable.");
-      return;
-  }
+    o.AddDefaultPolicy(p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+});
 
+// Serve static files from wwwroot
+builder.Services.AddDirectoryBrowser();
 
-  var key = "TODO";
+var app = builder.Build();
 
-    AzureKeyCredential credential = new AzureKeyCredential(key);
+app.UseCors();
 
-    // Initialize the AzureOpenAIClient
-    AzureOpenAIClient azureClient = new(new Uri(endpoint), credential);
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
-    // Initialize the ChatClient with the specified deployment name
-    ChatClient chatClient = azureClient.GetChatClient("gpt-4.1");
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
-    // List of messages to send
-    //     var messages = new List<ChatMessage>
-    //     {
-    //         new SystemChatMessage(@"You are an AI assistant that helps people find information."),
-    //               new UserChatMessage(@"I am going to Paris, what should I see?"),
-    //               new AssistantChatMessage(@"Paris, the capital of France, is known for its stunning architecture, art museums, historical landmarks, and romantic atmosphere. Here are some of the top attractions to see in Paris:
+app.MapPost("/api/chat", async (ChatRequest req) =>
+{
+    var endpoint = GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT");
+    var key = GetEnvironmentVariable("AZURE_OPENAI_API_KEY");
+    var deployment = req.deployment ?? GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT") ?? "gpt-4.1";
 
-    // 1. The Eiffel Tower: The iconic Eiffel Tower is one of the most recognizable landmarks in the world and offers breathtaking views of the city.
-    // 2. The Louvre Museum: The Louvre is one of the world's largest and most famous museums, housing an impressive collection of art and artifacts, including the Mona Lisa.
-    // 3. Notre-Dame Cathedral: This beautiful cathedral is one of the most famous landmarks in Paris and is known for its Gothic architecture and stunning stained glass windows.
-
-    // These are just a few of the many attractions that Paris has to offer. With so much to see and do, it's no wonder that Paris is one of the most popular tourist destinations in the world."),
-    //               new UserChatMessage(@"What is so great about #1?"),
-    //     };
-
-
-var messages = new List<ChatMessage>
+    if (string.IsNullOrWhiteSpace(endpoint) || string.IsNullOrWhiteSpace(key))
     {
-         new SystemChatMessage(@"You are an AI Digital Buddy for oncall engineers. you need to help with what they need to fix the issue."),
-               new UserChatMessage(@"I got unique constraint error. what should I do."),
-               new AssistantChatMessage(@"It indicates that there is a violation of a unique constraint in the database. This typically happens when you try to insert or update a record with a value that already exists in a column that has a unique constraint applied to it."),
-               new UserChatMessage(@"give me some example sql query to fix it."),
-     };
+        return Results.Problem("Missing AZURE_OPENAI_ENDPOINT or AZURE_OPENAI_API_KEY env vars.", statusCode: 500);
+    }
 
-    // Create chat completion options
+    var credential = new AzureKeyCredential(key);
+    var azureClient = new AzureOpenAIClient(new Uri(endpoint), credential);
+    var chatClient = azureClient.GetChatClient(deployment);
 
-    var options = new ChatCompletionOptions {
-        Temperature = (float)0.7,
+    var messages = new List<ChatMessage>();
+    if (!string.IsNullOrWhiteSpace(req.system))
+    {
+        messages.Add(new SystemChatMessage(req.system!));
+    }
+    messages.Add(new UserChatMessage(req.prompt));
+
+    var options = new ChatCompletionOptions
+    {
+        Temperature = 0.7f,
         MaxOutputTokenCount = 800,
-        
-        TopP=(float)0.95,
-        FrequencyPenalty=(float)0,
-        PresencePenalty=(float)0
+        TopP = 0.95f,
+        FrequencyPenalty = 0f,
+        PresencePenalty = 0f,
     };
 
     try
     {
-        // Create the chat completion request
         ChatCompletion completion = await chatClient.CompleteChatAsync(messages, options);
 
-        // Print the response
-        if (completion != null)
-        {
-            Console.WriteLine(JsonSerializer.Serialize(completion, new JsonSerializerOptions() { WriteIndented = true }));
-        }
-        else
-        {
-            Console.WriteLine("No response received.");
-        }
+    // Extract assistant text for convenience from content parts
+    var parts = completion.Content; // IEnumerable<ChatMessageContentPart>
+    string text = string.Join("\n\n", parts.Select(p => p.Text).Where(t => !string.IsNullOrWhiteSpace(t)));
+
+        return Results.Ok(new ChatResponse(text, completion!));
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"An error occurred: {ex.Message}");
+        return Results.Problem($"Chat error: {ex.Message}", statusCode: 500);
     }
-}
+});
 
-await RunAsync();
+// Health check
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
+
+app.Run();
+
+// DTOs (must appear after top-level statements)
+public record ChatRequest(string? system, string prompt, string? deployment);
+public record ChatResponse(string text, object raw);
