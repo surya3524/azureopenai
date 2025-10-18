@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenAI.Chat;
+using System.Net;
+using System.Net.Mail;
 using System.Text.Json;
 using static System.Environment;
 using System.Linq;
@@ -171,6 +173,38 @@ app.MapPost("/api/chat", async (ChatRequest req) =>
     }
 });
 
+app.MapPost("/api/send-email", async (EmailRequest req) =>
+{
+    var cfg = app.Configuration;
+    var smtpHost = GetEnvironmentVariable("SMTP_HOST") ?? cfg["Smtp:Host"];
+    var smtpPort = int.TryParse(GetEnvironmentVariable("SMTP_PORT"), out var port) ? port : int.TryParse(cfg["Smtp:Port"], out var p) ? p : 587;
+    var smtpUser = GetEnvironmentVariable("SMTP_USER") ?? cfg["Smtp:User"];
+    var smtpPass = GetEnvironmentVariable("SMTP_PASS") ?? cfg["Smtp:Pass"];
+    var smtpFrom = GetEnvironmentVariable("SMTP_FROM") ?? cfg["Smtp:From"];
+    bool enableSsl = (GetEnvironmentVariable("SMTP_SSL") ?? cfg["Smtp:Ssl"] ?? "true").ToLowerInvariant() == "true";
+
+    if (string.IsNullOrWhiteSpace(smtpHost) || string.IsNullOrWhiteSpace(smtpUser) || string.IsNullOrWhiteSpace(smtpPass) || string.IsNullOrWhiteSpace(smtpFrom))
+    {
+        return Results.Problem("Missing SMTP configuration.", statusCode: 500);
+    }
+    try
+    {
+        var message = new MailMessage(smtpFrom, req.To, req.Subject, req.Body);
+        using var client = new SmtpClient(smtpHost, smtpPort)
+        {
+            Credentials = new NetworkCredential(smtpUser, smtpPass),
+            EnableSsl = enableSsl
+        };
+        await client.SendMailAsync(message);
+        return Results.Ok(new { status = "sent" });
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Email send error");
+        return Results.Problem($"Email send error: {ex.Message}", statusCode: 500);
+    }
+});
+
 // Health check
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapHealthChecks("/health");
@@ -180,3 +214,4 @@ app.Run();
 // DTOs (must appear after top-level statements)
 public record ChatRequest(string? system, string prompt, string? deployment);
 public record ChatResponse(string text, object raw);
+public record EmailRequest(string To, string Subject, string Body);
