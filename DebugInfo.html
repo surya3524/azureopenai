@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>OpenAI Debug Info</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; }
+        h2 { color: #0275d8; }
+        .config-list { margin: 20px 0; padding: 0; list-style: none; }
+        .config-list li { margin-bottom: 10px; }
+        #endpointDetails { display: block; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h2>OpenAI Configuration Debug</h2>
+    <div>
+        <label>
+            <input type="checkbox" id="showEndpoints" onclick="toggleEndpoints()" checked />
+            Show OpenAI Endpoints
+        </label>
+    </div>
+    <div id="endpointDetails">
+        <ul class="config-list">
+            <li><strong>Endpoint:</strong> <span id="endpoint"></span></li>
+            <li><strong>API Key:</strong> <span id="apiKey"></span></li>
+            <li><strong>Deployment:</strong> <span id="deployment"></span></li>
+            <li><strong>Temperature:</strong> <span id="temperature"></span></li>
+            <li><strong>MaxOutputTokens:</strong> <span id="maxOutputTokens"></span></li>
+        </ul>
+    </div>
+    <script>
+        function toggleEndpoints() {
+            var details = document.getElementById('endpointDetails');
+            var checkbox = document.getElementById('showEndpoints');
+            details.style.display = checkbox.checked ? 'block' : 'none';
+        }
+        // Load config from server (replace with actual API call in production)
+        fetch('config-debug.json')
+            .then(response => response.json())
+            .then(cfg => {
+                document.getElementById('endpoint').textContent = cfg.Endpoint;
+                document.getElementById('apiKey').textContent = cfg.ApiKey;
+                document.getElementById('deployment').textContent = cfg.Deployment;
+                document.getElementById('temperature').textContent = cfg.Temperature;
+                document.getElementById('maxOutputTokens').textContent = cfg.MaxOutputTokens;
+            });
+    </script>
+</body>
+</html>
