@@ -273,9 +273,9 @@ app.MapPost("/api/send-email", async (EmailRequest req) =>
 
 string GetAppVersion()
 {
-    var version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-        ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString();
-    return version ?? "unknown";
+    // Read the clean Version instead of InformationalVersion (which may include git hash)
+    var version = Assembly.GetExecutingAssembly().GetName().Version;
+    return version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "unknown";
 }
 
 // Health check
