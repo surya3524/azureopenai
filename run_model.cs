@@ -117,7 +117,6 @@ app.MapPost("/api/chat", async (ChatRequest req) =>
     var cfg = app.Configuration;
     var envEndpoint = GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")?.Trim();
     var envKey = GetEnvironmentVariable("AZURE_OPENAI_API_KEY")?.Trim();
-    //var envDeployment = GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT")?.Trim();
     var envDeployment = "gpt-4.1";
     var envUseEntraId = GetEnvironmentVariable("USE_ENTRA_ID")?.Trim();
 
@@ -173,16 +172,40 @@ app.MapPost("/api/chat", async (ChatRequest req) =>
 
     var chatClient = azureClient.GetChatClient(deployment);
 
+    // Default system prompt for BMC job log analysis
+    var defaultSystemPrompt = @"You are an expert DevOps AI assistant specializing in analyzing BMC job logs and troubleshooting production issues.
+
+Your task is to:
+1. Analyze the provided BMC job logs or error messages
+2. Identify the root cause of failures
+3. Provide clear, actionable recommendations
+4. Suggest preventive measures
+
+Format your response with:
+- **SUMMARY**: Brief overview of the issue
+- **ROOT CAUSE**: The underlying problem
+- **RECOMMENDED ACTIONS**: Step-by-step fixes. include as much techinical quick snippets that the developers can use to troubleshoot. also show risk status with each suggested action (low, medium, high)
+- **PREVENTION**: How to avoid this in the future
+
+Be concise, technical, and helpful.";
+
     var messages = new List<ChatMessage>();
+    
+    // Use provided system prompt or default
     if (!string.IsNullOrWhiteSpace(req.system))
     {
         messages.Add(new SystemChatMessage(req.system!));
     }
+    else
+    {
+        messages.Add(new SystemChatMessage(defaultSystemPrompt));
+    }
+    
     messages.Add(new UserChatMessage(req.prompt));
 
-    // Prefer env var overrides, then config, otherwise sane defaults
-    float temperature = 0.7f;
-    int maxTokens = 800;
+    // Use config values
+    float temperature = 0f;
+    int maxTokens = 6000;
 
     var envTemp = GetEnvironmentVariable("OPENAI_TEMPERATURE");
     var envMax = GetEnvironmentVariable("MAX_OUTPUT_TOKENS");
@@ -207,19 +230,11 @@ app.MapPost("/api/chat", async (ChatRequest req) =>
 
     var options = new ChatCompletionOptions
     {
-        //Temperature = temperature,
-        //MaxOutputTokenCount = maxTokens,
-        //TopP = 0.95f,
-        //FrequencyPenalty = 0f,
-        //PresencePenalty = 0f,
-
         Temperature = 0f,
         MaxOutputTokenCount = 6000,
         TopP = 0.95f,
         FrequencyPenalty = 0f,
         PresencePenalty = 0f,
-
-
     };
 
     logger.LogInformation("API Call: /api/chat");
@@ -233,7 +248,7 @@ app.MapPost("/api/chat", async (ChatRequest req) =>
     {
         ChatCompletion completion = await chatClient.CompleteChatAsync(messages, options);
 
-        var parts = completion.Content; // IEnumerable<ChatMessageContentPart>
+        var parts = completion.Content;
         string text = string.Join("\n\n", parts.Select(p => p.Text).Where(t => !string.IsNullOrWhiteSpace(t)));
 
         return Results.Ok(new ChatResponse(text, completion!));
