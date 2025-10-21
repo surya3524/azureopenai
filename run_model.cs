@@ -325,7 +325,6 @@ app.MapPost("/api/chat", async (ChatRequest req) =>
         return Results.Problem("Missing Azure OpenAI Endpoint configuration.", statusCode: 500);
     }
 
-    // Normalize endpoint to base resource URL expected by AzureOpenAIClient
     Uri endpointUri;
     try
     {
@@ -353,7 +352,6 @@ app.MapPost("/api/chat", async (ChatRequest req) =>
 
     var chatClient = azureClient.GetChatClient(deployment);
 
-    // Default system prompt for BMC job log analysis
     var defaultSystemPrompt = @"You are an expert DevOps AI assistant specializing in analyzing BMC job logs and troubleshooting production issues.
 
 Your task is to:
@@ -372,7 +370,6 @@ Be concise, technical, and helpful.";
 
     var messages = new List<ChatMessage>();
     
-    // Use provided system prompt or default
     if (!string.IsNullOrWhiteSpace(req.system))
     {
         messages.Add(new SystemChatMessage(req.system!));
@@ -383,7 +380,10 @@ Be concise, technical, and helpful.";
     }
     
     // Normalize the user prompt to remove PII/volatile data
-    string normalizedPrompt = NormalizeExceptionLogs(req.prompt ?? "");
+    string originalPrompt = req.prompt ?? "";
+    string normalizedPrompt = NormalizeExceptionLogs(originalPrompt);
+    bool wasRedacted = originalPrompt != normalizedPrompt;
+    
     messages.Add(new UserChatMessage(normalizedPrompt));
 
     // Use config values
@@ -426,7 +426,7 @@ Be concise, technical, and helpful.";
     logger.LogInformation("  Temperature: {Temperature}", temperature);
     logger.LogInformation("  MaxTokens: {MaxTokens}", maxTokens);
     logger.LogInformation("  Deployment: {Deployment}", deployment);
-    logger.LogInformation("  NormalizedPrompt: {Prompt}", normalizedPrompt);
+    logger.LogInformation("  WasRedacted: {WasRedacted}", wasRedacted);
 
     try
     {
@@ -435,7 +435,13 @@ Be concise, technical, and helpful.";
         var parts = completion.Content;
         string text = string.Join("\n\n", parts.Select(p => p.Text).Where(t => !string.IsNullOrWhiteSpace(t)));
 
-        return Results.Ok(new ChatResponse(text, completion!));
+        return Results.Ok(new 
+        { 
+            text = text, 
+            raw = completion,
+            wasRedacted = wasRedacted,
+            normalizedPrompt = wasRedacted ? normalizedPrompt : null
+        });
     }
     catch (Exception ex)
     {

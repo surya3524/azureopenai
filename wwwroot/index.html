@@ -115,6 +115,14 @@
       border-left: 4px solid #689f38;
       color: #33691e;
     }
+    .content.redacted {
+      background: #fff3e0;
+      padding: 12px;
+      border-radius: 8px;
+      border-left: 4px solid #ff9800;
+      color: #e65100;
+      font-size: 14px;
+    }
     /* Redacted content styling */
     .redacted {
       background: #ffebee;
@@ -289,6 +297,8 @@
         contentClass += ' user-query';
       } else if (messageType === 'ai') {
         contentClass += ' ai-response';
+      } else if (messageType === 'redacted') {
+        contentClass += ' redacted';
       }
       if (isError) {
         contentClass += ' error';
@@ -298,8 +308,8 @@
       // Parse markdown and then highlight redactions
       let parsedContent = marked.parse(text || '');
       
-      // Apply redaction highlighting for user queries
-      if (messageType === 'user') {
+      // Apply redaction highlighting for user queries and redacted messages
+      if (messageType === 'user' || messageType === 'redacted') {
         parsedContent = highlightRedactions(parsedContent);
       }
       
@@ -327,7 +337,9 @@
 
       sendBtn.disabled = true;
       showSpinner();
-      addMessage('BMC job log (user submitted Query)', body.prompt, false, 'user');
+      
+      // Show original user input
+      addMessage('BMC job log (Your Input)', body.prompt, false, 'user');
       promptEl.value = '';
 
       try {
@@ -341,6 +353,12 @@
           throw new Error(t || res.statusText);
         }
         const data = await res.json();
+        
+        // If PII was redacted, show what was sent to the LLM
+        if (data.wasRedacted && data.normalizedPrompt) {
+          addMessage('⚠️ Redacted Query Sent to LLM (PII Removed)', data.normalizedPrompt, false, 'redacted');
+        }
+        
         addMessage('On Call AI Buddy Response', data.text || '(no text)', false, 'ai');
       } catch (err) {
         addMessage('Error', String(err), true);
