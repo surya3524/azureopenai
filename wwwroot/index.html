@@ -103,6 +103,13 @@
       font-size: 14px;
       margin-top: 8px;
     }
+    .version {
+      font-size: 13px;
+      color: #e0e7ff;
+      margin-left: 18px;
+      font-weight: 400;
+      opacity: 0.8;
+    }
     @media (max-width: 600px) {
       .container { padding: 0 8px; }
       .card { padding: 12px; }
@@ -113,6 +120,7 @@
 <body>
   <div class="header">
     <span class="header-title">AI Oncall Buddy</span>
+    <span id="appVersion" class="version"></span>
     <a href="DebugInfo.html" target="_blank" style="margin-left:30px; color:#fff; font-size:15px; text-decoration:underline;">OpenAI Debug Info</a>
   </div>
   <div class="container">
@@ -234,6 +242,19 @@
         sendEmailBtn.disabled = false;
       }
     });
+
+    // Show app version in header
+    async function showVersion() {
+      try {
+        const res = await fetch('/api/health');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.version) {
+          document.getElementById('appVersion').textContent = `v${data.version}`;
+        }
+      } catch {}
+    }
+    showVersion();
   </script>
 </body>
 </html>
