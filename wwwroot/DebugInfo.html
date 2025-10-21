@@ -22,6 +22,7 @@
     <div id="endpointDetails">
         <ul class="config-list">
             <li><strong>Endpoint:</strong> <span id="endpoint"></span></li>
+            <li><strong>API Key:</strong> <span id="apiKey"></span></li>
             <li><strong>Deployment:</strong> <span id="deployment"></span></li>
             <li><strong>Temperature:</strong> <span id="temperature"></span></li>
             <li><strong>MaxOutputTokens:</strong> <span id="maxOutputTokens"></span></li>
@@ -38,6 +39,7 @@
             .then(response => response.json())
             .then(cfg => {
                 document.getElementById('endpoint').textContent = cfg.Endpoint;
+                document.getElementById('apiKey').textContent = cfg.ApiKey;
                 document.getElementById('deployment').textContent = cfg.Deployment;
                 document.getElementById('temperature').textContent = cfg.Temperature;
                 document.getElementById('maxOutputTokens').textContent = cfg.MaxOutputTokens;
