@@ -101,6 +101,20 @@
       word-break: break-word;
       max-width: 100%;
     }
+    .content.user-query {
+      background: #e3f2fd;
+      padding: 12px;
+      border-radius: 8px;
+      border-left: 4px solid #2196f3;
+      color: #0d47a1;
+    }
+    .content.ai-response {
+      background: #f1f8e9;
+      padding: 12px;
+      border-radius: 8px;
+      border-left: 4px solid #689f38;
+      color: #33691e;
+    }
     .content pre {
       white-space: pre-wrap;
       overflow-wrap: break-word;
@@ -186,14 +200,23 @@
     const promptEl = document.getElementById('prompt');
     const out = document.getElementById('output');
 
-    function addMessage(role, text, isError=false) {
+    function addMessage(role, text, isError=false, messageType='') {
       const d = document.createElement('div');
       d.className = 'msg';
       const r = document.createElement('div');
       r.className = 'role';
       r.textContent = role;
       const c = document.createElement('div');
-      c.className = 'content' + (isError ? ' error' : '');
+      let contentClass = 'content';
+      if (messageType === 'user') {
+        contentClass += ' user-query';
+      } else if (messageType === 'ai') {
+        contentClass += ' ai-response';
+      }
+      if (isError) {
+        contentClass += ' error';
+      }
+      c.className = contentClass;
       c.innerHTML = marked.parse(text || '');
       d.appendChild(r);
       d.appendChild(c);
@@ -209,7 +232,7 @@
       if (!body.prompt.trim()) return;
 
       sendBtn.disabled = true;
-      addMessage('You', body.prompt);
+      addMessage('BMC job log (user submitted Query)', body.prompt, false, 'user');
       promptEl.value = '';
 
       try {
@@ -223,7 +246,7 @@
           throw new Error(t || res.statusText);
         }
         const data = await res.json();
-        addMessage('Assistant', data.text || '(no text)');
+        addMessage('On Call AI Buddy Response', data.text || '(no text)', false, 'ai');
       } catch (err) {
         addMessage('Error', String(err), true);
       } finally {
