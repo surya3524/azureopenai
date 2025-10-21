@@ -384,6 +384,14 @@ Be concise, technical, and helpful.";
     string normalizedPrompt = NormalizeExceptionLogs(originalPrompt);
     bool wasRedacted = originalPrompt != normalizedPrompt;
     
+    // Log the redaction details
+    logger.LogInformation("=== REDACTION CHECK ===");
+    logger.LogInformation("Original Length: {OrigLen}", originalPrompt.Length);
+    logger.LogInformation("Normalized Length: {NormLen}", normalizedPrompt.Length);
+    logger.LogInformation("Original: {Orig}", originalPrompt.Length > 100 ? originalPrompt.Substring(0, 100) + "..." : originalPrompt);
+    logger.LogInformation("Normalized: {Norm}", normalizedPrompt.Length > 100 ? normalizedPrompt.Substring(0, 100) + "..." : normalizedPrompt);
+    logger.LogInformation("WasRedacted: {WasRedacted}", wasRedacted);
+    
     messages.Add(new UserChatMessage(normalizedPrompt));
 
     // Use config values

@@ -354,13 +354,21 @@
         }
         const data = await res.json();
         
+        console.log('API Response:', data); // Debug log
+        console.log('Was Redacted:', data.wasRedacted); // Debug log
+        console.log('Normalized Prompt:', data.normalizedPrompt); // Debug log
+        
         // If PII was redacted, show what was sent to the LLM
-        if (data.wasRedacted && data.normalizedPrompt) {
+        if (data.wasRedacted === true && data.normalizedPrompt) {
+          console.log('Showing redacted message...'); // Debug log
           addMessage('⚠️ Redacted Query Sent to LLM (PII Removed)', data.normalizedPrompt, false, 'redacted');
+        } else {
+          console.log('No redaction needed or data missing'); // Debug log
         }
         
         addMessage('On Call AI Buddy Response', data.text || '(no text)', false, 'ai');
       } catch (err) {
+        console.error('Error:', err); // Debug log
         addMessage('Error', String(err), true);
       } finally {
         hideSpinner();
