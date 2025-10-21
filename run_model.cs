@@ -207,11 +207,19 @@ app.MapPost("/api/chat", async (ChatRequest req) =>
 
     var options = new ChatCompletionOptions
     {
-        Temperature = temperature,
-        MaxOutputTokenCount = maxTokens,
+        //Temperature = temperature,
+        //MaxOutputTokenCount = maxTokens,
+        //TopP = 0.95f,
+        //FrequencyPenalty = 0f,
+        //PresencePenalty = 0f,
+
+        Temperature = 0f,
+        MaxOutputTokenCount = 6000,
         TopP = 0.95f,
         FrequencyPenalty = 0f,
         PresencePenalty = 0f,
+
+
     };
 
     logger.LogInformation("API Call: /api/chat");
