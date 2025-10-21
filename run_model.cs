@@ -14,6 +14,7 @@ using System.Linq;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using System.Text;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -270,8 +271,15 @@ app.MapPost("/api/send-email", async (EmailRequest req) =>
     }
 });
 
+string GetAppVersion()
+{
+    var version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString();
+    return version ?? "unknown";
+}
+
 // Health check
-app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok", version = GetAppVersion() }));
 app.MapHealthChecks("/health");
 
 app.Run();
