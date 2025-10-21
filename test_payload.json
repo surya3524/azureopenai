@@ -1,0 +1,7 @@
+{
+  "ExceptionLogs": "System.Data.SqlClient.SqlException (0x80131904): Timeout expired. The timeout period elapsed prior to completion of the operation or the server is not responding.\n   at System.Data.SqlClient.SqlCommand.ExecuteReader(CommandBehavior cmdBehavior)\n   at MyApp.Data.OrderRepository.GetOrdersByDate(DateTime startDate) in C:\\Projects\\MyApp\\Data\\OrderRepository.cs:line 145\n   at MyApp.Services.OrderProcessor.ProcessDailyOrders() in C:\\Projects\\MyApp\\Services\\OrderProcessor.cs:line 78\n   at MyApp.Jobs.DailyOrderJob.Execute(IJobExecutionContext context) in C:\\Projects\\MyApp\\Jobs\\DailyOrderJob.cs:line 42\n\nConnection Timeout: 30 seconds\nQuery: SELECT * FROM Orders WHERE OrderDate >= @StartDate\nTimestamp: 2024-01-15T10:45:23.456Z\nRequest ID: a7f8c9d4-e5b6-47a8-9c1d-2e3f4a5b6c7d",
+  "DeveloperEmail": "developer@example.com",
+  "JobName": "DailyOrderProcessor",
+  "Environment": "Production",
+  "JobDescription": "Processes all orders from the previous day and generates summary reports"
+}

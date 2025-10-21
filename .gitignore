@@ -29,6 +29,8 @@ project.assets.json
 appsettings*.json
 appsettings.Development.json
 /Properties/launchSettings.json
+# Ignore publish output
+publish/
 # ========== Java ========== #
 ## Compiled class files
 *.class

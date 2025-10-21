@@ -116,7 +116,8 @@ app.MapPost("/api/chat", async (ChatRequest req) =>
     var cfg = app.Configuration;
     var envEndpoint = GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")?.Trim();
     var envKey = GetEnvironmentVariable("AZURE_OPENAI_API_KEY")?.Trim();
-    var envDeployment = GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT")?.Trim();
+    //var envDeployment = GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT")?.Trim();
+    var envDeployment = "gpt-4.1";
     var envUseEntraId = GetEnvironmentVariable("USE_ENTRA_ID")?.Trim();
 
     // Prefer env vars, then config
