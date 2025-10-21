@@ -1,0 +1,7 @@
+{
+  "Endpoint": "https://rs-sm-az-openai.openai.azure.com/",
+  "ApiKey": "7w39wbuKV2FS6O7C9tImlcj0sgRrlrJX4UsC4C4RMe3pELYpKMDAJQQJ99BJACYeBjFXJ3w3AAABACOGEwJe",
+  "Deployment": "gpt-4.1",
+  "Temperature": "0.7",
+  "MaxOutputTokens": "256"
+}

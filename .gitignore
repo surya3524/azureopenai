@@ -27,6 +27,7 @@ project.assets.json
 .tools/
 # Ignore local ASP.NET Core configuration and launch settings
 appsettings*.json
+appsettings.Development.json
 /Properties/launchSettings.json
 # ========== Java ========== #
 ## Compiled class files
@@ -86,3 +87,4 @@ Desktop.ini
 ## Node (just in case mixed project)
 node_modules/
 # End
+/Config_to_make_it_Work.txt
