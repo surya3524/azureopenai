@@ -115,6 +115,17 @@
       border-left: 4px solid #689f38;
       color: #33691e;
     }
+    /* Redacted content styling */
+    .redacted {
+      background: #ffebee;
+      color: #c62828;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid #ef5350;
+    }
     .content pre {
       white-space: pre-wrap;
       overflow-wrap: break-word;
@@ -235,6 +246,37 @@
     const out = document.getElementById('output');
     const loadingSpinner = document.getElementById('loadingSpinner');
 
+    function highlightRedactions(text) {
+      // Highlight all redacted placeholders
+      const redactionPatterns = [
+        /\[REDACTED_EMAIL\]/g,
+        /\[REDACTED_PATH\]/g,
+        /\[REDACTED_IP\]/g,
+        /\[REDACTED_IPv6\]/g,
+        /\[REDACTED_GUID\]/g,
+        /\[TIMESTAMP\]/g,
+        /\[MEMADDR\]/g,
+        /\[REDACTED_CC\]/g,
+        /\[REDACTED_SSN\]/g,
+        /\[REDACTED_PHONE\]/g,
+        /\[REDACTED_USER\]/g,
+        /\[REDACTED_JWT\]/g,
+        /\[REDACTED_AWS_KEY\]/g,
+        /\[REDACTED_PRIVATE_KEY\]/g,
+        /\[REDACTED_NAME\]/g,
+        /\[REDACTED\]/g
+      ];
+      
+      let highlighted = text;
+      redactionPatterns.forEach(pattern => {
+        highlighted = highlighted.replace(pattern, (match) => {
+          return `<span class="redacted">${match}</span>`;
+        });
+      });
+      
+      return highlighted;
+    }
+
     function addMessage(role, text, isError=false, messageType='') {
       const d = document.createElement('div');
       d.className = 'msg';
@@ -252,7 +294,16 @@
         contentClass += ' error';
       }
       c.className = contentClass;
-      c.innerHTML = marked.parse(text || '');
+      
+      // Parse markdown and then highlight redactions
+      let parsedContent = marked.parse(text || '');
+      
+      // Apply redaction highlighting for user queries
+      if (messageType === 'user') {
+        parsedContent = highlightRedactions(parsedContent);
+      }
+      
+      c.innerHTML = parsedContent;
       d.appendChild(r);
       d.appendChild(c);
       out.prepend(d);

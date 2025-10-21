@@ -16,6 +16,187 @@ using Microsoft.Extensions.Logging;
 using System.Text;
 using System.Reflection;
 
+// Helper: NormalizeExceptionLogs to remove PII and sensitive data
+static string NormalizeExceptionLogs(string input)
+{
+    if (string.IsNullOrWhiteSpace(input))
+        return input;
+
+    // Normalize line endings and trim
+    string output = input.Replace("\r\n", "\n").Replace("\r", "\n").Trim();
+
+    // 1. Redact email addresses (before extracting names from them)
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b", 
+        "[REDACTED_EMAIL]");
+
+    // 2. Redact file paths (Windows and Unix)
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"(?:[a-zA-Z]:\\[\w\s\-\\.]+|\/(?:[\w\s\-]+\/)+[\w\s\-\.]*)", 
+        "[REDACTED_PATH]");
+
+    // 3. Redact IP addresses (IPv4 and IPv6)
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"\b(?:\d{1,3}\.){3}\d{1,3}\b", 
+        "[REDACTED_IP]");
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b", 
+        "[REDACTED_IPv6]");
+
+    // 4. Redact GUIDs/UUIDs
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b", 
+        "[REDACTED_GUID]");
+
+    // 5. Redact timestamps (various formats)
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?", 
+        "[TIMESTAMP]");
+
+    // 6. Redact memory addresses
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"0x[0-9a-fA-F]{8,16}", 
+        "[MEMADDR]");
+
+    // 7. Redact sensitive keys, tokens, passwords
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"(?i)(api[_-]?key|access[_-]?token|secret[_-]?key|password|auth[_-]?token|bearer)\s*[:=]\s*[^\s&""']+", 
+        "$1=[REDACTED]", 
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    // 8. Redact credit card numbers
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b", 
+        "[REDACTED_CC]");
+
+    // 9. Redact social security numbers (US format)
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"\b\d{3}-\d{2}-\d{4}\b", 
+        "[REDACTED_SSN]");
+
+    // 10. Redact phone numbers
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"\b(?:\+?1[-.]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b", 
+        "[REDACTED_PHONE]");
+
+    // 11. Redact usernames in paths or URLs
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"(?i)(?:\/users?\/|\\users?\\|user=|username=)([^\s\/\\&""']+)", 
+        "$1[REDACTED_USER]", 
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    // 12. Redact database connection strings
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"(?i)(server|host|data source|database|uid|user id|password|pwd)\s*=\s*[^;]+", 
+        "$1=[REDACTED]", 
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+    // 13. Redact session IDs and JWT tokens
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"(?i)(session[_-]?id|jsessionid|phpsessid|asp\.net_sessionid)\s*[:=]\s*[^\s&""']+", 
+        "$1=[REDACTED]", 
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"\beyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\b", 
+        "[REDACTED_JWT]");
+
+    // 14. Redact AWS keys
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"\b(AKIA[0-9A-Z]{16})\b", 
+        "[REDACTED_AWS_KEY]");
+
+    // 15. Redact private keys
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----[\s\S]*?-----END\s+(?:RSA\s+)?PRIVATE\s+KEY-----", 
+        "[REDACTED_PRIVATE_KEY]");
+
+    // 16. Redact person names (common patterns)
+    // Pattern: "User: FirstName LastName", "Author: Name", "by FirstName LastName", etc.
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"(?i)\b(user|author|created\s+by|modified\s+by|developer|owner|by|name)[\s:]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b", 
+        "$1: [REDACTED_NAME]", 
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    
+    // Pattern: "FirstName.LastName" or "firstname.lastname" in usernames/emails (already redacted above)
+    // Pattern: Capitalized names in error messages like "Error by John Smith"
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"\b([A-Z][a-z]{2,})\s+([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?)\b", 
+        match => {
+            // Avoid redacting common technical terms, exception types, class names
+            string matched = match.Value;
+            string[] technicalTerms = { 
+                "System", "Exception", "Error", "Warning", "Info", "Debug", "Trace",
+                "Microsoft", "Azure", "Windows", "Linux", "Server", "Client", "Database",
+                "Application", "Service", "Process", "Thread", "Task", "Method", "Class",
+                "File", "Directory", "Network", "Connection", "Request", "Response",
+                "Null", "Reference", "Argument", "Invalid", "Access", "Denied", "Not", "Found"
+            };
+            
+            foreach (var term in technicalTerms)
+            {
+                if (matched.Contains(term, StringComparison.OrdinalIgnoreCase))
+                    return matched;
+            }
+            
+            // If it looks like a person's name (2-3 capitalized words, each 3+ chars), redact it
+            var words = matched.Split(' ');
+            if (words.Length >= 2 && words.Length <= 3 && 
+                words.All(w => w.Length >= 3 && char.IsUpper(w[0])))
+            {
+                return "[REDACTED_NAME]";
+            }
+            
+            return matched;
+        });
+
+    // 17. Limit stack traces to top 10 frames for consistency
+    var lines = output.Split('\n');
+    var stackFrameCount = 0;
+    var resultLines = new List<string>();
+    bool inStackTrace = false;
+    
+    foreach (var line in lines)
+    {
+        var trimmed = line.Trim();
+        
+        if (trimmed.StartsWith("at ") || trimmed.Contains(":line"))
+        {
+            if (!inStackTrace)
+            {
+                inStackTrace = true;
+                stackFrameCount = 0;
+            }
+            
+            if (stackFrameCount < 10)
+            {
+                resultLines.Add(line);
+                stackFrameCount++;
+            }
+            else if (stackFrameCount == 10)
+            {
+                resultLines.Add("   ... [remaining stack frames omitted]");
+                stackFrameCount++;
+            }
+        }
+        else
+        {
+            inStackTrace = false;
+            resultLines.Add(line);
+        }
+    }
+    
+    output = string.Join("\n", resultLines);
+
+    // 18. Truncate to reasonable length
+    const int maxLength = 20000;
+    if (output.Length > maxLength)
+    {
+        output = output.Substring(0, maxLength) + "\n\n[Log truncated for processing - original length: " + input.Length + " chars]";
+    }
+    
+    return output;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Ensure local dev config is loaded even if environment isn't set to Development
@@ -201,7 +382,9 @@ Be concise, technical, and helpful.";
         messages.Add(new SystemChatMessage(defaultSystemPrompt));
     }
     
-    messages.Add(new UserChatMessage(req.prompt));
+    // Normalize the user prompt to remove PII/volatile data
+    string normalizedPrompt = NormalizeExceptionLogs(req.prompt ?? "");
+    messages.Add(new UserChatMessage(normalizedPrompt));
 
     // Use config values
     float temperature = 0f;
@@ -243,6 +426,7 @@ Be concise, technical, and helpful.";
     logger.LogInformation("  Temperature: {Temperature}", temperature);
     logger.LogInformation("  MaxTokens: {MaxTokens}", maxTokens);
     logger.LogInformation("  Deployment: {Deployment}", deployment);
+    logger.LogInformation("  NormalizedPrompt: {Prompt}", normalizedPrompt);
 
     try
     {
