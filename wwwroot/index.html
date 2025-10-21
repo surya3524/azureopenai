@@ -156,6 +156,33 @@
       font-weight: 400;
       opacity: 0.8;
     }
+    /* Loading spinner styles */
+    .spinner-container {
+      display: none;
+      padding: 20px;
+      text-align: center;
+    }
+    .spinner-container.active {
+      display: block;
+    }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #0052cc;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .spinner-text {
+      color: #0052cc;
+      font-size: 14px;
+      font-weight: 500;
+    }
     @media (max-width: 600px) {
       .container { padding: 0 8px; }
       .card { padding: 12px; }
@@ -179,6 +206,13 @@
         </div>
       </div>
     </div>
+    
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="spinner-container">
+      <div class="spinner"></div>
+      <div class="spinner-text">Analyzing your request...</div>
+    </div>
+    
     <div class="card" id="output" style="margin-top:0;"></div>
     <div class="card">
       <h3 style="margin-top:0;">Send Email</h3>
@@ -199,6 +233,7 @@
     const sendBtn = document.getElementById('send');
     const promptEl = document.getElementById('prompt');
     const out = document.getElementById('output');
+    const loadingSpinner = document.getElementById('loadingSpinner');
 
     function addMessage(role, text, isError=false, messageType='') {
       const d = document.createElement('div');
@@ -223,6 +258,14 @@
       out.prepend(d);
     }
 
+    function showSpinner() {
+      loadingSpinner.classList.add('active');
+    }
+
+    function hideSpinner() {
+      loadingSpinner.classList.remove('active');
+    }
+
     async function send() {
       const body = {
         system: null,
@@ -232,6 +275,7 @@
       if (!body.prompt.trim()) return;
 
       sendBtn.disabled = true;
+      showSpinner();
       addMessage('BMC job log (user submitted Query)', body.prompt, false, 'user');
       promptEl.value = '';
 
@@ -250,6 +294,7 @@
       } catch (err) {
         addMessage('Error', String(err), true);
       } finally {
+        hideSpinner();
         sendBtn.disabled = false;
       }
     }
