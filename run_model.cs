@@ -30,7 +30,17 @@ static string NormalizeExceptionLogs(string input)
         @"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b", 
         "[REDACTED_EMAIL]");
 
-    // 2. Redact file paths (Windows and Unix) - ENHANCED
+    // 2. Redact URLs (http/https/ftp)
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"\b(?:https?|ftp)://[^\s<>""']+", 
+        "[REDACTED_URL]");
+    
+    // Redact www URLs without protocol
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"\bwww\.[^\s<>""']+", 
+        "[REDACTED_URL]");
+
+    // 3. Redact file paths (Windows and Unix) - ENHANCED
     // Windows absolute paths (C:\, D:\, etc.)
     output = System.Text.RegularExpressions.Regex.Replace(output, 
         @"[a-zA-Z]:\\(?:[^\s<>:""|?*\n]+\\)*[^\s<>:""|?*\n]*", 
@@ -65,7 +75,7 @@ static string NormalizeExceptionLogs(string input)
         },
         System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
-    // 3. Redact IP addresses (IPv4 and IPv6)
+    // 4. Redact IP addresses (IPv4 and IPv6)
     output = System.Text.RegularExpressions.Regex.Replace(output, 
         @"\b(?:\d{1,3}\.){3}\d{1,3}\b", 
         "[REDACTED_IP]");
@@ -73,55 +83,55 @@ static string NormalizeExceptionLogs(string input)
         @"\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b", 
         "[REDACTED_IPv6]");
 
-    // 4. Redact GUIDs/UUIDs
+    // 5. Redact GUIDs/UUIDs
     output = System.Text.RegularExpressions.Regex.Replace(output, 
         @"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b", 
         "[REDACTED_GUID]");
 
-    // 5. Redact timestamps (various formats)
+    // 6. Redact timestamps (various formats)
     output = System.Text.RegularExpressions.Regex.Replace(output, 
         @"\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?", 
         "[TIMESTAMP]");
 
-    // 6. Redact memory addresses
+    // 7. Redact memory addresses
     output = System.Text.RegularExpressions.Regex.Replace(output, 
         @"0x[0-9a-fA-F]{8,16}", 
         "[MEMADDR]");
 
-    // 7. Redact sensitive keys, tokens, passwords
+    // 8. Redact sensitive keys, tokens, passwords
     output = System.Text.RegularExpressions.Regex.Replace(output, 
         @"(?i)(api[_-]?key|access[_-]?token|secret[_-]?key|password|auth[_-]?token|bearer)\s*[:=]\s*[^\s&""']+", 
         "$1=[REDACTED]", 
         System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
-    // 8. Redact credit card numbers
+    // 9. Redact credit card numbers
     output = System.Text.RegularExpressions.Regex.Replace(output, 
         @"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b", 
         "[REDACTED_CC]");
 
-    // 9. Redact social security numbers (US format)
+    // 10. Redact social security numbers (US format)
     output = System.Text.RegularExpressions.Regex.Replace(output, 
         @"\b\d{3}-\d{2}-\d{4}\b", 
         "[REDACTED_SSN]");
 
-    // 10. Redact phone numbers
+    // 11. Redact phone numbers
     output = System.Text.RegularExpressions.Regex.Replace(output, 
         @"\b(?:\+?1[-.]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b", 
         "[REDACTED_PHONE]");
 
-    // 11. Redact usernames in paths or URLs
+    // 12. Redact usernames in paths or URLs
     output = System.Text.RegularExpressions.Regex.Replace(output, 
         @"(?i)(?:\/users?\/|\\users?\\|user=|username=)([^\s\/\\&""']+)", 
         "$1[REDACTED_USER]", 
         System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
-    // 12. Redact database connection strings
+    // 13. Redact database connection strings
     output = System.Text.RegularExpressions.Regex.Replace(output, 
         @"(?i)(server|host|data source|database|uid|user id|password|pwd)\s*=\s*[^;]+", 
         "$1=[REDACTED]", 
         System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
-    // 13. Redact session IDs and JWT tokens
+    // 14. Redact session IDs and JWT tokens
     output = System.Text.RegularExpressions.Regex.Replace(output, 
         @"(?i)(session[_-]?id|jsessionid|phpsessid|asp\.net_sessionid)\s*[:=]\s*[^\s&""']+", 
         "$1=[REDACTED]", 
@@ -130,17 +140,17 @@ static string NormalizeExceptionLogs(string input)
         @"\beyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\b", 
         "[REDACTED_JWT]");
 
-    // 14. Redact AWS keys
+    // 15. Redact AWS keys
     output = System.Text.RegularExpressions.Regex.Replace(output, 
         @"\b(AKIA[0-9A-Z]{16})\b", 
         "[REDACTED_AWS_KEY]");
 
-    // 15. Redact private keys
+    // 16. Redact private keys
     output = System.Text.RegularExpressions.Regex.Replace(output, 
         @"-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----[\s\S]*?-----END\s+(?:RSA\s+)?PRIVATE\s+KEY-----", 
         "[REDACTED_PRIVATE_KEY]");
 
-    // 16. Redact person names (common patterns)
+    // 17. Redact person names (common patterns)
     // Pattern: "User: FirstName LastName", "Author: Name", "by FirstName LastName", etc.
     output = System.Text.RegularExpressions.Regex.Replace(output, 
         @"(?i)\b(user|author|created\s+by|modified\s+by|developer|owner|by|name)[\s:]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b", 
@@ -179,7 +189,7 @@ static string NormalizeExceptionLogs(string input)
             return matched;
         });
 
-    // 17. Limit stack traces to top 10 frames for consistency
+    // 18. Limit stack traces to top 10 frames for consistency
     var lines = output.Split('\n');
     var stackFrameCount = 0;
     var resultLines = new List<string>();
@@ -217,7 +227,7 @@ static string NormalizeExceptionLogs(string input)
     
     output = string.Join("\n", resultLines);
 
-    // 18. Truncate to reasonable length
+    // 19. Truncate to reasonable length
     const int maxLength = 20000;
     if (output.Length > maxLength)
     {
@@ -393,10 +403,10 @@ Your task is to:
 Format your response with:
 - **SUMMARY**: Brief overview of the issue
 - **ROOT CAUSE**: The underlying problem
-- **RECOMMENDED ACTIONS**: Step-by-step fixes. include as much techinical quick snippets that the developers can use to troubleshoot. also show risk status with each suggested action (low, medium, high)
+- **RECOMMENDED ACTIONS**: Step-by-step fixes. Include as much technical detail and code snippets that developers can use to troubleshoot. Show risk status with each suggested action (Low, Medium, High)
 - **PREVENTION**: How to avoid this in the future
 
-Be concise, technical, and helpful.";
+Be concise, technical, and helpful. This is a one-time analysis - provide a complete, self-contained response without asking for additional information or suggesting follow-up tasks. Do not prompt the user to provide more details or ask if they need further assistance.";
 
     var messages = new List<ChatMessage>();
     
@@ -598,10 +608,10 @@ Analyze the provided exception logs and provide a structured response with the f
 1. **SUMMARY**: A concise 2-3 sentence overview of what happened
 2. **ROOT CAUSE**: The underlying reason for the failure (not just the immediate error)
 3. **QUICK CHECKS**: 3-5 immediate things the developer should verify (configuration, permissions, data, dependencies, etc.)
-4. **NEXT STEPS**: Recommended actions in order of priority
+4. **NEXT STEPS**: Recommended actions in order of priority with risk levels (Low, Medium, High)
 5. **ADDITIONAL CONTEXT**: Any relevant patterns, similar issues, or preventive measures
 
-Be specific, technical, and actionable. Focus on helping developers quickly understand and resolve the issue.";
+Be specific, technical, and actionable. Focus on helping developers quickly understand and resolve the issue. This is a one-time analysis that will be emailed - provide a complete, self-contained response without requesting additional information or suggesting follow-up questions.";
 
     // Construct user prompt with context
     var userPrompt = new StringBuilder();
