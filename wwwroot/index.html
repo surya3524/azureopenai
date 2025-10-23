@@ -78,6 +78,32 @@
       gap: 10px;
       margin-bottom: 16px;
     }
+    .settings-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+    .settings-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .settings-group label {
+      font-size: 13px;
+      color: #666;
+      font-weight: 500;
+    }
+    .settings-group input[type="number"] {
+      width: 100%;
+      background: #f7f9fc;
+      color: #222;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 14px;
+    }
     textarea {
       width: 100%;
       min-height: 100px;
@@ -252,6 +278,9 @@
         width: 100%;
         justify-content: space-between;
       }
+      .settings-row {
+        flex-direction: column;
+      }
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -274,6 +303,19 @@
     <div class="card">
       <label for="prompt" style="display:block;margin-bottom:4px;">Enter a <b>BMC job run</b>.</label>
       <textarea id="prompt" placeholder="Enter a BMC job run..."></textarea>
+      
+      <!-- AI Settings -->
+      <div class="settings-row">
+        <div class="settings-group">
+          <label for="temperature">Temperature (0-2)</label>
+          <input type="number" id="temperature" min="0" max="2" step="0.1" value="0" />
+        </div>
+        <div class="settings-group">
+          <label for="maxTokens">Max Output Tokens</label>
+          <input type="number" id="maxTokens" min="100" max="128000" step="100" value="6000" />
+        </div>
+      </div>
+      
       <div class="row" style="align-items:center; justify-content:flex-end;">
         <div>
           <button id="send">Send</button>
@@ -306,6 +348,8 @@
   <script>
     const sendBtn = document.getElementById('send');
     const promptEl = document.getElementById('prompt');
+    const temperatureEl = document.getElementById('temperature');
+    const maxTokensEl = document.getElementById('maxTokens');
     const out = document.getElementById('output');
     const loadingSpinner = document.getElementById('loadingSpinner');
     const showFullLogCheckbox = document.getElementById('showFullLog');
@@ -406,18 +450,24 @@
     });
 
     async function send() {
+      const temperature = parseFloat(temperatureEl.value) || 0;
+      const maxTokens = parseInt(maxTokensEl.value) || 6000;
+      
       const body = {
         system: null,
         prompt: promptEl.value || '',
-        deployment: null
+        deployment: null,
+        temperature: temperature,
+        maxTokens: maxTokens
       };
       if (!body.prompt.trim()) return;
 
       sendBtn.disabled = true;
       showSpinner();
       
-      // Show original user input
-      addMessage('BMC job log (Your Input)', body.prompt, false, 'user', false);
+      // Show original user input with settings info
+      const settingsInfo = `\n\n_Settings: Temperature=${temperature}, MaxTokens=${maxTokens}_`;
+      addMessage('BMC job log (Your Input)', body.prompt + settingsInfo, false, 'user', false);
       promptEl.value = '';
 
       try {

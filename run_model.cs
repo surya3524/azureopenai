@@ -424,35 +424,49 @@ Be concise, technical, and helpful.";
     
     messages.Add(new UserChatMessage(normalizedPrompt));
 
-    // Use config values
-    float temperature = 0f;
-    int maxTokens = 6000;
+    // Use config values with defaults
+    float temperature = 0f; // Default
+    int maxTokens = 6000;   // Default
 
-    var envTemp = GetEnvironmentVariable("OPENAI_TEMPERATURE");
-    var envMax = GetEnvironmentVariable("MAX_OUTPUT_TOKENS");
+    // Priority: Request parameters > Environment variables > Config > Defaults
+    if (req.temperature.HasValue)
+    {
+        temperature = req.temperature.Value;
+    }
+    else
+    {
+        var envTemp = GetEnvironmentVariable("OPENAI_TEMPERATURE");
+        if (!string.IsNullOrWhiteSpace(envTemp) && float.TryParse(envTemp, out var t))
+        {
+            temperature = t;
+        }
+        else if (float.TryParse(cfg["AzureOpenAI:Temperature"], out var tc))
+        {
+            temperature = tc;
+        }
+    }
 
-    if (!string.IsNullOrWhiteSpace(envTemp) && float.TryParse(envTemp, out var t))
+    if (req.maxTokens.HasValue)
     {
-        temperature = t;
+        maxTokens = req.maxTokens.Value;
     }
-    else if (float.TryParse(cfg["AzureOpenAI:Temperature"], out var tc))
+    else
     {
-        temperature = tc;
-    }
-
-    if (!string.IsNullOrWhiteSpace(envMax) && int.TryParse(envMax, out var mt))
-    {
-        maxTokens = mt;
-    }
-    else if (int.TryParse(cfg["AzureOpenAI:MaxOutputTokens"], out var mc))
-    {
-        maxTokens = mc;
+        var envMax = GetEnvironmentVariable("MAX_OUTPUT_TOKENS");
+        if (!string.IsNullOrWhiteSpace(envMax) && int.TryParse(envMax, out var mt))
+        {
+            maxTokens = mt;
+        }
+        else if (int.TryParse(cfg["AzureOpenAI:MaxOutputTokens"], out var mc))
+        {
+            maxTokens = mc;
+        }
     }
 
     var options = new ChatCompletionOptions
     {
-        Temperature = 0f,
-        MaxOutputTokenCount = 6000,
+        Temperature = temperature,
+        MaxOutputTokenCount = maxTokens,
         TopP = 0.95f,
         FrequencyPenalty = 0f,
         PresencePenalty = 0f,
@@ -621,14 +635,19 @@ Be specific, technical, and actionable. Focus on helping developers quickly unde
         new UserChatMessage(userPrompt.ToString())
     };
 
-    // Use higher token limit for detailed analysis
+    // Use configurable token limit with default
     int maxTokens = int.TryParse(GetEnvironmentVariable("MAX_OUTPUT_TOKENS"), out var mt) 
         ? mt 
-        : int.TryParse(cfg["AzureOpenAI:MaxOutputTokens"], out var mc) ? mc : 1500;
+        : int.TryParse(cfg["AzureOpenAI:MaxOutputTokens"], out var mc) ? mc : 6000;
+
+    // Use configurable temperature with default
+    float temperature = float.TryParse(GetEnvironmentVariable("OPENAI_TEMPERATURE"), out var temp)
+        ? temp
+        : float.TryParse(cfg["AzureOpenAI:Temperature"], out var tempCfg) ? tempCfg : 0.3f;
 
     var options = new ChatCompletionOptions
     {
-        Temperature = 0.3f, // Lower temperature for more focused, consistent analysis
+        Temperature = temperature,
         MaxOutputTokenCount = maxTokens,
         TopP = 0.95f,
         FrequencyPenalty = 0f,
@@ -772,7 +791,7 @@ string GenerateEmailHtml(ExceptionAnalysisRequest req, ExceptionAnalysis analysi
 }
 
 // DTOs
-public record ChatRequest(string? system, string prompt, string? deployment);
+public record ChatRequest(string? system, string prompt, string? deployment, float? temperature = null, int? maxTokens = null);
 public record ChatResponse(string text, object raw);
 public record EmailRequest(string To, string Subject, string Body);
 
