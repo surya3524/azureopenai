@@ -14,16 +14,49 @@
     .header {
       background: #0052cc;
       color: #fff;
-      padding: 18px 0 18px 0;
+      padding: 18px 24px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.04);
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: space-between;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 18px;
     }
     .header-title {
       font-size: 22px;
       font-weight: 600;
       letter-spacing: 1px;
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .checkbox-container-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .checkbox-container-header input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: #fff;
+    }
+    .checkbox-container-header label {
+      font-size: 14px;
+      font-weight: 400;
+      cursor: pointer;
+      user-select: none;
+      color: #fff;
+      margin: 0;
     }
     .container {
       max-width: 700px;
@@ -86,6 +119,12 @@
       border-bottom: 1px solid #e5e7eb;
       overflow-wrap: break-word;
       word-wrap: break-word;
+    }
+    .msg.redacted-msg {
+      display: none;
+    }
+    .msg.redacted-msg.visible {
+      display: block;
     }
     .role {
       font-size: 13px;
@@ -171,7 +210,6 @@
     .version {
       font-size: 13px;
       color: #e0e7ff;
-      margin-left: 18px;
       font-weight: 400;
       opacity: 0.8;
     }
@@ -205,15 +243,32 @@
     @media (max-width: 600px) {
       .container { padding: 0 8px; }
       .card { padding: 12px; }
+      .header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+      }
+      .header-right {
+        width: 100%;
+        justify-content: space-between;
+      }
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
   <div class="header">
-    <span class="header-title">AI Oncall Buddy</span>
-    <span id="appVersion" class="version"></span>
-    <a href="DebugInfo.html" target="_blank" style="margin-left:30px; color:#fff; font-size:15px; text-decoration:underline;">OpenAI Debug Info</a>
+    <div class="header-left">
+      <span class="header-title">AI Oncall Buddy</span>
+      <span id="appVersion" class="version"></span>
+    </div>
+    <div class="header-right">
+      <div class="checkbox-container-header">
+        <input type="checkbox" id="showFullLog" />
+        <label for="showFullLog">Show Full Log</label>
+      </div>
+      <a href="DebugInfo.html" target="_blank" style="color:#fff; font-size:15px; text-decoration:underline;">OpenAI Debug Info</a>
+    </div>
   </div>
   <div class="container">
     <div class="card">
@@ -253,6 +308,7 @@
     const promptEl = document.getElementById('prompt');
     const out = document.getElementById('output');
     const loadingSpinner = document.getElementById('loadingSpinner');
+    const showFullLogCheckbox = document.getElementById('showFullLog');
 
     function highlightRedactions(text) {
       // Highlight all redacted placeholders
@@ -285,9 +341,19 @@
       return highlighted;
     }
 
-    function addMessage(role, text, isError=false, messageType='') {
+    function addMessage(role, text, isError=false, messageType='', isRedacted=false) {
       const d = document.createElement('div');
       d.className = 'msg';
+      
+      // Add redacted-msg class if this is a redacted message
+      if (isRedacted) {
+        d.classList.add('redacted-msg');
+        // Check if checkbox is currently checked
+        if (showFullLogCheckbox.checked) {
+          d.classList.add('visible');
+        }
+      }
+      
       const r = document.createElement('div');
       r.className = 'role';
       r.textContent = role;
@@ -327,6 +393,18 @@
       loadingSpinner.classList.remove('active');
     }
 
+    // Toggle visibility of redacted messages when checkbox changes
+    showFullLogCheckbox.addEventListener('change', function() {
+      const redactedMessages = document.querySelectorAll('.redacted-msg');
+      redactedMessages.forEach(msg => {
+        if (this.checked) {
+          msg.classList.add('visible');
+        } else {
+          msg.classList.remove('visible');
+        }
+      });
+    });
+
     async function send() {
       const body = {
         system: null,
@@ -339,7 +417,7 @@
       showSpinner();
       
       // Show original user input
-      addMessage('BMC job log (Your Input)', body.prompt, false, 'user');
+      addMessage('BMC job log (Your Input)', body.prompt, false, 'user', false);
       promptEl.value = '';
 
       try {
@@ -358,18 +436,18 @@
         console.log('Was Redacted:', data.wasRedacted); // Debug log
         console.log('Normalized Prompt:', data.normalizedPrompt); // Debug log
         
-        // If PII was redacted, show what was sent to the LLM
+        // If PII was redacted, show what was sent to the LLM (hidden by default)
         if (data.wasRedacted === true && data.normalizedPrompt) {
-          console.log('Showing redacted message...'); // Debug log
-          addMessage('⚠️ Redacted Query Sent to LLM (PII Removed)', data.normalizedPrompt, false, 'redacted');
+          console.log('Adding redacted message...'); // Debug log
+          addMessage('⚠️ Redacted Query Sent to LLM', data.normalizedPrompt, false, 'redacted', true);
         } else {
           console.log('No redaction needed or data missing'); // Debug log
         }
         
-        addMessage('On Call AI Buddy Response', data.text || '(no text)', false, 'ai');
+        addMessage('On Call AI Buddy Response', data.text || '(no text)', false, 'ai', false);
       } catch (err) {
         console.error('Error:', err); // Debug log
-        addMessage('Error', String(err), true);
+        addMessage('Error', String(err), true, '', false);
       } finally {
         hideSpinner();
         sendBtn.disabled = false;
