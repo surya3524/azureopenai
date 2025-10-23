@@ -422,8 +422,6 @@ If the user submits a non-technical or general question, politely decline with:
 - **RECOMMENDED ACTIONS**: Step-by-step fixes with technical details and code snippets that developers can use to troubleshoot. show most confident ones on the top along with confidence score. Show risk status with each suggested action (Low, Medium, High). Also include details for Incident Mangement team so that they can triage it effectively and understand the issue and prediction based on your best estimate how long this might take to resolve.
 - **PREVENTION**: How to avoid this in the future
 
-Also provide meaningful estimated time of prediction for incident mangement team as well so that they are aware of the criticality of the issue and short description in a tabular form.
-
 Be concise, technical, and helpful. This is a one-time analysis - provide a complete, self-contained response without asking for additional information or suggesting follow-up tasks. Do not prompt the user to provide more details or ask if they need further assistance.";
 
     var messages = new List<ChatMessage>();
