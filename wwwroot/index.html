@@ -3,19 +3,48 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Oncall Buddy</title>
+  <title>AI On Call Buddy - ServiceNow Simulator</title>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
       margin: 0;
-      background: #f4f6fb;
-      color: #222;
+      background: #f4f5f7;
+      color: #293e40;
     }
     .header {
-      background: #0052cc;
+      background: linear-gradient(135deg, #1f4788 0%, #2c5f8d 100%);
       color: #fff;
+      padding: 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    .header-top {
+      background: #081f3d;
+      padding: 8px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+    }
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .snow-icon {
+      width: 24px;
+      height: 24px;
+      background: #fff;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #081f3d;
+      font-size: 14px;
+    }
+    .header-main {
       padding: 18px 24px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -25,57 +54,83 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 18px;
+      gap: 12px;
     }
     .header-title {
-      font-size: 22px;
-      font-weight: 600;
-      letter-spacing: 1px;
+      font-size: 24px;
+      font-weight: 400;
+      letter-spacing: 0.5px;
+    }
+    .header-subtitle {
+      font-size: 13px;
+      opacity: 0.9;
+      font-weight: 300;
     }
     .header-right {
       position: absolute;
       right: 24px;
       display: flex;
       align-items: center;
-      gap: 20px;
+      gap: 16px;
     }
     .checkbox-container-header {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 12px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 6px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      transition: background 0.2s;
+    }
+    .checkbox-container-header:hover {
+      background: rgba(255, 255, 255, 0.25);
     }
     .checkbox-container-header input[type="checkbox"] {
       width: 16px;
       height: 16px;
       cursor: pointer;
-      accent-color: #fff;
+      accent-color: #81b5e0;
     }
     .checkbox-container-header label {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 400;
       cursor: pointer;
       user-select: none;
       color: #fff;
       margin: 0;
     }
+    .debug-link {
+      color: #81b5e0;
+      font-size: 13px;
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    .debug-link:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
     .container {
-      max-width: 700px;
+      max-width: 900px;
       margin: 32px auto 0 auto;
       padding: 0 24px;
     }
     .card {
       background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
       padding: 24px;
-      margin-bottom: 24px;
-      overflow-wrap: break-word;
-      word-wrap: break-word;
-      word-break: break-word;
+      margin-bottom: 20px;
+      border: 1px solid #dfe3e6;
+    }
+    .card-header {
+      font-size: 16px;
+      font-weight: 500;
+      color: #293e40;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #2c5f8d;
     }
     .row {
       display: flex;
@@ -96,60 +151,77 @@
     }
     .settings-group label {
       font-size: 12px;
-      color: #666;
+      color: #6b7780;
       font-weight: 500;
       white-space: nowrap;
     }
     .settings-group input[type="number"] {
       width: 100%;
-      background: #f7f9fc;
-      color: #222;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
+      background: #fff;
+      color: #293e40;
+      border: 1px solid #c5d0de;
+      border-radius: 3px;
       padding: 8px 10px;
       font-size: 14px;
       box-sizing: border-box;
+      transition: border-color 0.2s;
+    }
+    .settings-group input[type="number"]:focus {
+      outline: none;
+      border-color: #2c5f8d;
+      box-shadow: 0 0 0 2px rgba(44, 95, 141, 0.1);
     }
     textarea {
       width: 100%;
-      min-height: 100px;
+      min-height: 120px;
       resize: vertical;
-      background: #f7f9fc;
-      color: #222;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
+      background: #fff;
+      color: #293e40;
+      border: 1px solid #c5d0de;
+      border-radius: 3px;
       padding: 12px;
-      font-size: 15px;
+      font-size: 14px;
       margin-bottom: 8px;
       box-sizing: border-box;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      transition: border-color 0.2s;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: #2c5f8d;
+      box-shadow: 0 0 0 2px rgba(44, 95, 141, 0.1);
     }
     input, select {
-      background: #f7f9fc;
-      color: #222;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
+      background: #fff;
+      color: #293e40;
+      border: 1px solid #c5d0de;
+      border-radius: 3px;
       padding: 10px;
-      font-size: 15px;
+      font-size: 14px;
     }
     button {
-      background: #0052cc;
+      background: #2c5f8d;
       color: #fff;
       border: 0;
-      border-radius: 8px;
-      padding: 12px 22px;
-      font-size: 16px;
+      border-radius: 3px;
+      padding: 10px 20px;
+      font-size: 14px;
       font-weight: 500;
       cursor: pointer;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
       transition: background 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    button:hover {
+      background: #1f4788;
     }
     button:disabled {
-      background: #b3c2e0;
+      background: #a8b5c2;
       cursor: not-allowed;
     }
     .msg {
       padding: 14px 0;
-      border-bottom: 1px solid #e5e7eb;
+      border-bottom: 1px solid #e8ecef;
       overflow-wrap: break-word;
       word-wrap: break-word;
     }
@@ -160,51 +232,54 @@
       display: block;
     }
     .role {
-      font-size: 13px;
-      color: #0052cc;
-      margin-bottom: 6px;
-      font-weight: 500;
+      font-size: 12px;
+      color: #2c5f8d;
+      margin-bottom: 8px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     .content {
       white-space: pre-wrap;
-      font-size: 15px;
+      font-size: 14px;
       overflow-wrap: break-word;
       word-wrap: break-word;
       word-break: break-word;
       max-width: 100%;
+      line-height: 1.6;
     }
     .content.user-query {
-      background: #e3f2fd;
+      background: #e8f4fd;
       padding: 12px;
-      border-radius: 8px;
-      border-left: 4px solid #2196f3;
-      color: #0d47a1;
+      border-radius: 3px;
+      border-left: 4px solid #2c5f8d;
+      color: #293e40;
     }
     .content.ai-response {
-      background: #f1f8e9;
+      background: #e6f5e8;
       padding: 12px;
-      border-radius: 8px;
-      border-left: 4px solid #689f38;
-      color: #33691e;
+      border-radius: 3px;
+      border-left: 4px solid #46a546;
+      color: #293e40;
     }
     .content.redacted {
-      background: #fff3e0;
+      background: #fff4e6;
       padding: 12px;
-      border-radius: 8px;
+      border-radius: 3px;
       border-left: 4px solid #ff9800;
-      color: #e65100;
-      font-size: 14px;
+      color: #663c00;
+      font-size: 13px;
     }
     /* Redacted content styling */
     .redacted {
-      background: #ffebee;
+      background: #ffe9e9;
       color: #c62828;
       padding: 2px 6px;
-      border-radius: 3px;
+      border-radius: 2px;
       font-family: 'Courier New', monospace;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
-      border: 1px solid #ef5350;
+      border: 1px solid #ffcdd2;
     }
     .content pre {
       white-space: pre-wrap;
@@ -212,10 +287,11 @@
       word-wrap: break-word;
       word-break: break-word;
       overflow-x: auto;
-      background: #f5f5f5;
+      background: #f8f9fa;
       padding: 12px;
-      border-radius: 6px;
+      border-radius: 3px;
       max-width: 100%;
+      border: 1px solid #dfe3e6;
     }
     .content code {
       white-space: pre-wrap;
@@ -233,20 +309,18 @@
       color: #d7263d;
     }
     .tip {
-      font-size: 13px;
-      color: #6b7280;
+      font-size: 12px;
+      color: #6b7780;
     }
     .email-status {
-      font-size: 14px;
+      font-size: 13px;
       margin-top: 8px;
     }
     .version {
-      font-size: 13px;
-      color: #e0e7ff;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.7);
       font-weight: 400;
-      opacity: 0.8;
     }
-    /* Loading spinner styles */
     .spinner-container {
       display: none;
       padding: 20px;
@@ -256,8 +330,8 @@
       display: block;
     }
     .spinner {
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #0052cc;
+      border: 4px solid #e8ecef;
+      border-top: 4px solid #2c5f8d;
       border-radius: 50%;
       width: 40px;
       height: 40px;
@@ -269,14 +343,14 @@
       100% { transform: rotate(360deg); }
     }
     .spinner-text {
-      color: #0052cc;
+      color: #2c5f8d;
       font-size: 14px;
       font-weight: 500;
     }
     @media (max-width: 600px) {
       .container { padding: 0 8px; }
-      .card { padding: 12px; }
-      .header {
+      .card { padding: 16px; }
+      .header-main {
         flex-direction: column;
         gap: 12px;
         align-items: center;
@@ -301,22 +375,34 @@
 </head>
 <body>
   <div class="header">
-    <div class="header-left">
-      <span class="header-title">AI Oncall Buddy</span>
+    <div class="header-top">
+      <div class="header-logo">
+        <div class="snow-icon">SN</div>
+        <span>ServiceNow Platform Simulator</span>
+      </div>
       <span id="appVersion" class="version"></span>
     </div>
-    <div class="header-right">
-      <div class="checkbox-container-header">
-        <input type="checkbox" id="showFullLog" />
-        <label for="showFullLog">Show Full Log</label>
+    <div class="header-main">
+      <div class="header-left">
+        <div style="text-align: center;">
+          <div class="header-title">AI On Call Buddy</div>
+          <div class="header-subtitle">ServiceNow Simulator</div>
+        </div>
       </div>
-      <a href="DebugInfo.html" target="_blank" style="color:#fff; font-size:15px; text-decoration:underline;">OpenAI Debug Info</a>
+      <div class="header-right">
+        <div class="checkbox-container-header">
+          <input type="checkbox" id="showFullLog" />
+          <label for="showFullLog">Show Full Log</label>
+        </div>
+        <a href="DebugInfo.html" target="_blank" class="debug-link">Debug Info</a>
+      </div>
     </div>
   </div>
   <div class="container">
     <div class="card">
-      <label for="prompt" style="display:block;margin-bottom:4px;">Enter a <b>BMC job run</b>.</label>
-      <textarea id="prompt" placeholder="Enter a BMC job run..."></textarea>
+      <div class="card-header">BMC Job Analysis</div>
+      <label for="prompt" style="display:block;margin-bottom:8px;font-size:13px;color:#6b7780;font-weight:500;">Enter BMC Job Log</label>
+      <textarea id="prompt" placeholder="Paste your BMC job run logs here..."></textarea>
       
       <!-- AI Settings -->
       <div class="settings-row">
@@ -332,7 +418,7 @@
       
       <div class="row" style="align-items:center; justify-content:flex-end;">
         <div>
-          <button id="send">Send</button>
+          <button id="send">Analyze</button>
         </div>
       </div>
     </div>
@@ -345,12 +431,12 @@
     
     <div class="card" id="output" style="margin-top:0;"></div>
     <div class="card">
-      <h3 style="margin-top:0;">Send Email</h3>
+      <div class="card-header">Send Email Notification</div>
       <div class="row">
         <input id="emailTo" type="email" placeholder="Recipient email" style="flex:1;" />
         <input id="emailSubject" placeholder="Subject" style="flex:2;" />
       </div>
-      <textarea id="emailBody" placeholder="Email body..."></textarea>
+      <textarea id="emailBody" placeholder="Email body..." style="min-height:80px;"></textarea>
       <div class="row" style="align-items:center; justify-content:flex-end;">
         <div>
           <button id="sendEmail">Send Email</button>
@@ -497,21 +583,21 @@
         }
         const data = await res.json();
         
-        console.log('API Response:', data); // Debug log
-        console.log('Was Redacted:', data.wasRedacted); // Debug log
-        console.log('Normalized Prompt:', data.normalizedPrompt); // Debug log
+        console.log('API Response:', data);
+        console.log('Was Redacted:', data.wasRedacted);
+        console.log('Normalized Prompt:', data.normalizedPrompt);
         
         // If PII was redacted, show what was sent to the LLM (hidden by default)
         if (data.wasRedacted === true && data.normalizedPrompt) {
-          console.log('Adding redacted message...'); // Debug log
+          console.log('Adding redacted message...');
           addMessage('⚠️ Redacted Query Sent to LLM', data.normalizedPrompt, false, 'redacted', true);
         } else {
-          console.log('No redaction needed or data missing'); // Debug log
+          console.log('No redaction needed or data missing');
         }
         
-        addMessage('On Call AI Buddy Response', data.text || '(no text)', false, 'ai', false);
+        addMessage('AI Analysis Results', data.text || '(no text)', false, 'ai', false);
       } catch (err) {
-        console.error('Error:', err); // Debug log
+        console.error('Error:', err);
         addMessage('Error', String(err), true, '', false);
       } finally {
         hideSpinner();
@@ -550,8 +636,8 @@
           const t = await res.text();
           throw new Error(t || res.statusText);
         }
-        emailStatus.style.color = '#0052cc';
-        emailStatus.textContent = 'Email sent!';
+        emailStatus.style.color = '#46a546';
+        emailStatus.textContent = 'Email sent successfully!';
         emailTo.value = '';
         emailSubject.value = '';
         emailBody.value = '';

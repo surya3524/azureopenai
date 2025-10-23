@@ -23,8 +23,6 @@
         <ul class="config-list">
             <li><strong>Endpoint:</strong> <span id="endpoint"></span></li>
             <li><strong>Deployment:</strong> <span id="deployment"></span></li>
-            <li><strong>Temperature:</strong> <span id="temperature"></span></li>
-            <li><strong>MaxOutputTokens:</strong> <span id="maxOutputTokens"></span></li>
         </ul>
     </div>
     <script>
@@ -39,8 +37,6 @@
             .then(cfg => {
                 document.getElementById('endpoint').textContent = cfg.Endpoint;
                 document.getElementById('deployment').textContent = cfg.Deployment;
-                document.getElementById('temperature').textContent = cfg.Temperature;
-                document.getElementById('maxOutputTokens').textContent = cfg.MaxOutputTokens;
             });
     </script>
 </body>
