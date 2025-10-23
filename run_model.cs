@@ -30,10 +30,40 @@ static string NormalizeExceptionLogs(string input)
         @"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b", 
         "[REDACTED_EMAIL]");
 
-    // 2. Redact file paths (Windows and Unix)
+    // 2. Redact file paths (Windows and Unix) - ENHANCED
+    // Windows absolute paths (C:\, D:\, etc.)
     output = System.Text.RegularExpressions.Regex.Replace(output, 
-        @"(?:[a-zA-Z]:\\[\w\s\-\\.]+|\/(?:[\w\s\-]+\/)+[\w\s\-\.]*)", 
+        @"[a-zA-Z]:\\(?:[^\s<>:""|?*\n]+\\)*[^\s<>:""|?*\n]*", 
         "[REDACTED_PATH]");
+    
+    // Unix/Linux absolute paths (/home/, /usr/, /var/, etc.)
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"(?:^|[\s(])(\/(?:home|usr|var|opt|etc|tmp|root|mnt|proc|sys|dev|boot|lib|bin|sbin)(?:\/[^\s<>:""|?*\n]+)*)", 
+        "$1[REDACTED_PATH]");
+    
+    // Unix relative paths (./path or ../path)
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"(?:\.{1,2}\/)+[^\s<>:""|?*\n]+", 
+        "[REDACTED_PATH]");
+    
+    // Network UNC paths (\\server\share\path)
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"\\\\[^\s\\]+(?:\\[^\s\\]+)+", 
+        "[REDACTED_PATH]");
+    
+    // File paths in stack traces (at line indicators)
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"in\s+(?:[a-zA-Z]:\\|\/)[^\s:]+(?=:line\s+\d+)", 
+        "in [REDACTED_PATH]");
+    
+    // Common path patterns in error messages
+    output = System.Text.RegularExpressions.Regex.Replace(output, 
+        @"(?:file|path|directory|folder|location)[\s:=]+[""']?(?:[a-zA-Z]:\\|\/)[^\s""'<>\n]+[""']?", 
+        match => {
+            var prefix = System.Text.RegularExpressions.Regex.Match(match.Value, @"^(?:file|path|directory|folder|location)[\s:=]+[""']?").Value;
+            return prefix + "[REDACTED_PATH]";
+        },
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
     // 3. Redact IP addresses (IPv4 and IPv6)
     output = System.Text.RegularExpressions.Regex.Replace(output, 
