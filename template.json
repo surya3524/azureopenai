@@ -26,7 +26,7 @@
       "Properties": {
         "Handler": "example",
         "Runtime": "dotnet8",
-        "CodeUri": "",
+        "CodeUri": ".",
         "MemorySize": 512,
         "Timeout": 30,
         "Description": "AI On Call Buddy for analyzing BMC job failures",
@@ -60,6 +60,11 @@
             }
           }
         }
+      },
+      "Metadata": {
+        "BuildMethod": "dotnet8",
+        "ProjectRootPath": ".",
+        "MsBuildProjectFullPath": "example.csproj"
       }
     }
   },

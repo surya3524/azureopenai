@@ -292,9 +292,9 @@ logger.LogInformation("ContentRootPath: {Path}", app.Environment.ContentRootPath
 app.UseCors();
 
 
-    app.UseSwagger();
-    app.UseSwaggerUI();
-    logger.LogInformation("Swagger UI available at /swagger");
+app.UseSwagger();
+app.UseSwaggerUI();
+logger.LogInformation("Swagger UI available at /swagger");
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
