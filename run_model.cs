@@ -266,6 +266,7 @@ foreach (var source in builder.Configuration.Sources)
 }
 
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 builder.Services.AddHealthChecks();
 
