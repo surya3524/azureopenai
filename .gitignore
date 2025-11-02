@@ -31,6 +31,23 @@ appsettings.Development.json
 /Properties/launchSettings.json
 # Ignore publish output
 publish/
+# ========== AWS Lambda ========== #
+## Deployment packages
+*.zip
+deployment.zip
+current-package.zip
+## Lambda build artifacts
+.aws-sam/
+## CloudFormation generated files
+packaged-template.yaml
+packaged-template.json
+## AWS credentials (NEVER commit)
+parameters.json
+aws-lambda-tools-defaults.json
+## Local test files
+response.json
+diagnostic-report.txt
+budget.json
 # ========== Java ========== #
 ## Compiled class files
 *.class

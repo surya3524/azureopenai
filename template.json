@@ -1,0 +1,81 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Transform": "AWS::Serverless-2016-10-31",
+  "Description": "AI On Call Buddy - ServiceNow Simulator Lambda Function",
+  
+  "Parameters": {
+    "AzureOpenAIEndpoint": {
+      "Type": "String",
+      "Description": "Azure OpenAI Endpoint URL"
+    },
+    "AzureOpenAIApiKey": {
+      "Type": "String",
+      "Description": "Azure OpenAI API Key",
+      "NoEcho": true
+    },
+    "AzureOpenAIDeployment": {
+      "Type": "String",
+      "Default": "gpt-4",
+      "Description": "Azure OpenAI Deployment Name"
+    }
+  },
+  
+  "Resources": {
+    "AIOnCallBuddyFunction": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "Handler": "example",
+        "Runtime": "dotnet8",
+        "CodeUri": "",
+        "MemorySize": 512,
+        "Timeout": 30,
+        "Description": "AI On Call Buddy for analyzing BMC job failures",
+        "Policies": [
+          "AWSLambdaBasicExecutionRole"
+        ],
+        "Environment": {
+          "Variables": {
+            "AZURE_OPENAI_ENDPOINT": { "Ref": "AzureOpenAIEndpoint" },
+            "AZURE_OPENAI_API_KEY": { "Ref": "AzureOpenAIApiKey" },
+            "AZURE_OPENAI_DEPLOYMENT": { "Ref": "AzureOpenAIDeployment" },
+            "OPENAI_TEMPERATURE": "0",
+            "MAX_OUTPUT_TOKENS": "6000",
+            "EnableSwagger": "false",
+            "ASPNETCORE_ENVIRONMENT": "Production"
+          }
+        },
+        "Events": {
+          "RootGet": {
+            "Type": "HttpApi",
+            "Properties": {
+              "Path": "/",
+              "Method": "GET"
+            }
+          },
+          "ProxyResource": {
+            "Type": "HttpApi",
+            "Properties": {
+              "Path": "/{proxy+}",
+              "Method": "ANY"
+            }
+          }
+        }
+      }
+    }
+  },
+  
+  "Outputs": {
+    "ApiUrl": {
+      "Description": "API Gateway endpoint URL",
+      "Value": {
+        "Fn::Sub": "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/"
+      }
+    },
+    "FunctionArn": {
+      "Description": "Lambda Function ARN",
+      "Value": {
+        "Fn::GetAtt": ["AIOnCallBuddyFunction", "Arn"]
+      }
+    }
+  }
+}

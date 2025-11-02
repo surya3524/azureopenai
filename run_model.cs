@@ -239,13 +239,46 @@ static string NormalizeExceptionLogs(string input)
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add AWS Lambda support
+builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
+
+// Enhanced logging for troubleshooting
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+builder.Logging.SetMinimumLevel(LogLevel.Information);
+
+// Log startup
+Console.WriteLine("=== APPLICATION STARTING ===");
+Console.WriteLine($"Environment: {builder.Environment.EnvironmentName}");
+Console.WriteLine($"Time: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
+
 // Ensure local dev config is loaded even if environment isn't set to Development
 builder.Configuration
     .AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true)
     .AddEnvironmentVariables();
 
+// Log configuration sources
+Console.WriteLine("Configuration loaded from:");
+foreach (var source in builder.Configuration.Sources)
+{
+    Console.WriteLine($"  - {source.GetType().Name}");
+}
+
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+// Conditionally add Swagger (disable in production for cost savings)
+var enableSwagger = builder.Configuration.GetValue<bool>("EnableSwagger", true);
+if (enableSwagger)
+{
+    Console.WriteLine("Swagger enabled");
+    builder.Services.AddSwaggerGen();
+}
+else
+{
+    Console.WriteLine("Swagger disabled (cost optimization)");
+}
+
 builder.Services.AddHealthChecks();
 
 // CORS for local testing and static UI
@@ -257,19 +290,30 @@ builder.Services.AddCors(o =>
 // Serve static files from wwwroot
 builder.Services.AddDirectoryBrowser();
 
+Console.WriteLine("=== BUILDING APPLICATION ===");
 var app = builder.Build();
+Console.WriteLine("=== APPLICATION BUILT SUCCESSFULLY ===");
+
 var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("ApiLogger");
+
+logger.LogInformation("Application configured and ready");
+logger.LogInformation("Environment: {Env}", app.Environment.EnvironmentName);
+logger.LogInformation("ContentRootPath: {Path}", app.Environment.ContentRootPath);
 
 app.UseCors();
 
-if (app.Environment.IsDevelopment())
+// Enable Swagger only if configured
+if (enableSwagger)
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    logger.LogInformation("Swagger UI available at /swagger");
 }
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
+
+logger.LogInformation("Middleware pipeline configured");
 
 // NEW: Main endpoint for ServiceNow to send exception logs for analysis
 app.MapPost("/api/analyze-exception", async (ExceptionAnalysisRequest req) =>
