@@ -27,8 +27,9 @@
         "Handler": "example",
         "Runtime": "dotnet8",
         "CodeUri": ".",
-        "MemorySize": 512,
+        "MemorySize": 1024,
         "Timeout": 30,
+        "Architectures": ["arm64"],
         "Description": "AI On Call Buddy for analyzing BMC job failures",
         "Policies": [
           "AWSLambdaBasicExecutionRole"
@@ -62,9 +63,7 @@
         }
       },
       "Metadata": {
-        "BuildMethod": "dotnet8",
-        "ProjectRootPath": ".",
-        "MsBuildProjectFullPath": "example.csproj"
+        "BuildMethod": "dotnet8"
       }
     }
   },
