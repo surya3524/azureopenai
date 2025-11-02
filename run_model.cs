@@ -267,18 +267,6 @@ foreach (var source in builder.Configuration.Sources)
 
 builder.Services.AddEndpointsApiExplorer();
 
-// Conditionally add Swagger (disable in production for cost savings)
-var enableSwagger = builder.Configuration.GetValue<bool>("EnableSwagger", true);
-if (enableSwagger)
-{
-    Console.WriteLine("Swagger enabled");
-    builder.Services.AddSwaggerGen();
-}
-else
-{
-    Console.WriteLine("Swagger disabled (cost optimization)");
-}
-
 builder.Services.AddHealthChecks();
 
 // CORS for local testing and static UI
@@ -302,78 +290,16 @@ logger.LogInformation("ContentRootPath: {Path}", app.Environment.ContentRootPath
 
 app.UseCors();
 
-// Enable Swagger only if configured
-if (enableSwagger)
-{
+
     app.UseSwagger();
     app.UseSwaggerUI();
     logger.LogInformation("Swagger UI available at /swagger");
-}
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
 logger.LogInformation("Middleware pipeline configured");
 
-// NEW: Main endpoint for ServiceNow to send exception logs for analysis
-app.MapPost("/api/analyze-exception", async (ExceptionAnalysisRequest req) =>
-{
-    logger.LogInformation("Received exception analysis request from ServiceNow");
-    logger.LogInformation("  Job Name: {JobName}", req.JobName ?? "N/A");
-    logger.LogInformation("  Environment: {Environment}", req.Environment ?? "N/A");
-    logger.LogInformation("  Developer Email: {Email}", req.DeveloperEmail);
-
-    if (string.IsNullOrWhiteSpace(req.ExceptionLogs))
-    {
-        return Results.BadRequest(new { error = "ExceptionLogs is required" });
-    }
-
-    if (string.IsNullOrWhiteSpace(req.DeveloperEmail))
-    {
-        return Results.BadRequest(new { error = "DeveloperEmail is required for sending results" });
-    }
-
-    try
-    {
-        // Step 1: Analyze the exception using Azure OpenAI
-        var analysisResult = await AnalyzeExceptionWithAI(req, logger, app.Configuration);
-        
-        if (analysisResult == null)
-        {
-            return Results.Problem("Failed to analyze exception with AI", statusCode: 500);
-        }
-
-        // Step 2: Send email with the analysis
-        var emailResult = await SendAnalysisEmail(req, analysisResult, logger, app.Configuration);
-        
-        if (!emailResult.Success)
-        {
-            logger.LogWarning("Analysis completed but email failed to send: {Error}", emailResult.Error);
-            return Results.Ok(new
-            {
-                status = "partial_success",
-                analysis = analysisResult,
-                emailSent = false,
-                emailError = emailResult.Error,
-                message = "Exception analysis completed but email delivery failed. See analysis results below."
-            });
-        }
-
-        logger.LogInformation("Exception analysis completed and email sent successfully");
-        return Results.Ok(new
-        {
-            status = "success",
-            analysis = analysisResult,
-            emailSent = true,
-            message = "Exception analyzed and results emailed to developer"
-        });
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Error processing exception analysis request");
-        return Results.Problem($"Analysis error: {ex.Message}", statusCode: 500);
-    }
-});
 
 // Keep original chat endpoint for testing
 app.MapPost("/api/chat", async (ChatRequest req) =>
@@ -569,40 +495,6 @@ Be concise, technical, and helpful. This is a one-time analysis - provide a comp
     {
         logger.LogError(ex, "Chat API error");
         return Results.Problem($"Chat error: {ex.Message}", statusCode: 500);
-    }
-});
-
-// Keep original email endpoint for manual testing
-app.MapPost("/api/send-email", async (EmailRequest req) =>
-{
-    var cfg = app.Configuration;
-    var smtpHost = GetEnvironmentVariable("SMTP_HOST") ?? cfg["Smtp:Host"];
-    var smtpPort = int.TryParse(GetEnvironmentVariable("SMTP_PORT"), out var port) ? port : int.TryParse(cfg["Smtp:Port"], out var p) ? p : 587;
-    var smtpUser = GetEnvironmentVariable("SMTP_USER") ?? cfg["Smtp:User"];
-    var smtpPass = GetEnvironmentVariable("SMTP_PASS") ?? cfg["Smtp:Pass"];
-    var smtpFrom = GetEnvironmentVariable("SMTP_FROM") ?? cfg["Smtp:From"];
-    bool enableSsl = (GetEnvironmentVariable("SMTP_SSL") ?? cfg["Smtp:Ssl"] ?? "true").ToLowerInvariant() == "true";
-
-    if (string.IsNullOrWhiteSpace(smtpHost) || string.IsNullOrWhiteSpace(smtpUser) || string.IsNullOrWhiteSpace(smtpPass) || string.IsNullOrWhiteSpace(smtpFrom))
-    {
-        return Results.Problem("Missing SMTP configuration.", statusCode: 500);
-    }
-    try
-    {
-        var message = new MailMessage(smtpFrom, req.To, req.Subject, req.Body);
-        message.IsBodyHtml = true;
-        using var client = new SmtpClient(smtpHost, smtpPort)
-        {
-            Credentials = new NetworkCredential(smtpUser, smtpPass),
-            EnableSsl = enableSsl
-        };
-        await client.SendMailAsync(message);
-        return Results.Ok(new { status = "sent" });
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Email send error");
-        return Results.Problem($"Email send error: {ex.Message}", statusCode: 500);
     }
 });
 
